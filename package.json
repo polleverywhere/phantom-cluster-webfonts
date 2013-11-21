@@ -1,0 +1,30 @@
+{
+    "name": "phantom-cluster",
+    "version": "0.0.1",
+    "author": "Yusuf Simonson <yusuf@themuse.com>",
+    "description": "Provides a cluster of workers for phantomjs processing",
+
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/dotcloud/phantom-cluster"
+    },
+
+    "keywords": [
+        "phantom",
+        "phantomjs",
+        "cluster"
+    ],
+
+    "dependencies": {
+        "phantomjs": "~1.9.2-0",
+        "phantom": "git://github.com/sgentle/phantomjs-node.git#4b10110cd3c67753786a6f120ed0b1895839bf18"
+    },
+
+    "devDependencies": {
+        "nodeunit": "0.8.2",
+        "coffee-script": "1.6.3",
+        "zmq": "2.5.1"
+    },
+
+    "license": "MIT"
+}
