@@ -11,33 +11,55 @@ WEBSITES = {
     "http://www.themuse.com/developers": "The Muse - Career advice and better job search",
 }
 
+# Adds the listeners for a item. This is put in a separate function to prevent
+# scoping issues in javascript.
 addItemListeners = (item) ->
+    # Fires when the item times out and has to be re-enqueued
     item.on "timeout", () -> console.log("# Queue item timed out, re-enqueueing #{item.id}")
 
+    # Fires when there's a response for this item. Validate it.
     item.on "response", () ->
         console.log("# Response")
         if WEBSITES[item.request] != item.response then throw new Error("Unexpected response for #{item.request}: #{item.response}")
 
+# The main callback
 main = () ->
+    # Start the engine
     engine = phantomCluster.createQueued({
         workers: 4,
         workerIterations: 4,
         phantomBasePort: 90222
     })
 
+    # If this is the master, enqueue all the tasks
     if cluster.isMaster
         for i in [0...4]
             for key of WEBSITES
                 addItemListeners(engine.enqueue(key))
 
+    # Called when a worker starts up
     engine.on "workerStarted", (worker) -> console.log("# Worker started: " + worker.id)
+
+    # Called when a worker dies
     engine.on "workerDied", (worker) -> console.log("# Worker died: " + worker.id)
+
+    # Called when an engine starts (either a worker or master)
     engine.on "started", () -> console.log("# Started")
+
+    # Called when an engine stops (either a worker or master)
     engine.on "stopped", () -> console.log("# Stopped")
+
+    # Called when a phantom instance is started
     engine.on "phantomStarted", () -> console.log("# Phantom instance started")
+
+    # Called when a phantom instance dies
     engine.on "phantomDied", () -> console.log("# Phantom instance died")
 
+    # Called when there's a request URL to crawl
     engine.on "queueItemReady", (url) ->
+        console.log("# Ready to process #{url}")
+
+        # Open the page, grab the title, and send a response with it
         @ph.createPage((page) =>
             page.open(url, (status) =>
                 page.evaluate((() -> document.title), (result) =>

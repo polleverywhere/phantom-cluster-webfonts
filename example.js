@@ -59,6 +59,7 @@
     });
     engine.on("queueItemReady", function(url) {
       var _this = this;
+      console.log("# Ready to process " + url);
       return this.ph.createPage(function(page) {
         return page.open(url, function(status) {
           return page.evaluate((function() {
