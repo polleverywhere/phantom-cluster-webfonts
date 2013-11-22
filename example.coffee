@@ -28,7 +28,7 @@ main = () ->
     engine = phantomCluster.createQueued({
         workers: 4,
         workerIterations: 4,
-        phantomBasePort: 90222
+        phantomBasePort: 12345
     })
 
     # If this is the master, enqueue all the tasks

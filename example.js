@@ -30,7 +30,7 @@
     engine = phantomCluster.createQueued({
       workers: 4,
       workerIterations: 4,
-      phantomBasePort: 90222
+      phantomBasePort: 12345
     });
     if (cluster.isMaster) {
       for (i = _i = 0; _i < 4; i = ++_i) {

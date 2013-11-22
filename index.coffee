@@ -1,7 +1,6 @@
 phantom = require("phantom")
 cluster = require("cluster")
 events = require("events")
-zmq = require("zmq")
 
 # Default number of iterations to execute per worker before killing the worker
 # process. This is done to prevent memory leaks from phantomjs.
@@ -14,9 +13,6 @@ STOP_QUEUE_CHECKING_INTERVAL = 10
 # Default time to wait (in ms) before considering a job dead and re-spawning
 # it for another worker to execute.
 DEFAULT_MESSAGE_TIMEOUT = 60 * 1000
-
-# Default connection string for master/worker sockets on ZeroMQ.
-DEFAULT_ZMQ_CONNECTION_STRING = "ipc:///tmp/phantom-cluster"
 
 # Checks whether an object is empty
 empty = (obj) ->
@@ -152,13 +148,10 @@ class PhantomClusterClient extends events.EventEmitter
             process.nextTick(() -> process.exit(0))
 
 # A cluster server/master that has a queue of work items. Items are passed off to clients
-# to run via a ZeroMQ socket.
+# to run via IPC messaging.
 class PhantomQueuedClusterServer extends PhantomClusterServer
     constructor: (options) ->
         super options
-
-        # Connection string for the ZeroMQ socket to bind to
-        @zmqConnectionString = options.zmqConnectionString or DEFAULT_ZMQ_CONNECTION_STRING
 
         # Timeout (in ms) before a message is considered dead
         @messageTimeout = options.messageTimeout or DEFAULT_MESSAGE_TIMEOUT
@@ -175,13 +168,9 @@ class PhantomQueuedClusterServer extends PhantomClusterServer
         # Queue if pending tasks
         @queue = []
 
-        # ZeroMQ socket to listen on for client requests
-        @_socket = zmq.socket("rep")
-        @_socket.bindSync(@zmqConnectionString)
-        @_socket.on "message", @_onSocketMessage
-
         @on "started", @_onStart
         @on "stopped", @_onStop
+        @on "workerStarted", @_onWorkerStarted
 
     enqueue: (request) ->
         # Enqueues a new request to pass off to a client
@@ -206,96 +195,72 @@ class PhantomQueuedClusterServer extends PhantomClusterServer
     _onStop: () =>
         # Close the socket and kill the timer on stop
         if @_stopCheckingInterval != null then clearInterval(@_stopCheckingInterval)
-        @_socket.close()
 
-    _onSocketMessage: (message) =>
-        # Parse the message into JSON
-        json = JSON.parse(message.toString())
+    _onWorkerStarted: (worker) =>
+        worker.on "message", (json) =>
+            if json.action == "queueItemRequest"
+                # Request from the client for a new work item
 
-        if json.action == "queueItemRequest"
-            # Request from the client for a new work item
+                if @queue.length > 0
+                    # Give a new work item if the queue isn't empty
+                    item = @queue.shift()
 
-            if @queue.length > 0
-                # Give a new work item if the queue isn't empty
-                item = @queue.shift()
+                    # Start the item, which will start the timeout on it
+                    item.start(@messageTimeout)
 
-                # Start the item, which will start the timeout on it
-                item.start(@messageTimeout)
+                    # Send the item off
+                    worker.send({
+                        action: "queueItemRequest",
+                        id: item.id,
+                        request: item.request
+                    })
+                    
+                    # Add the item to the pending tasks
+                    @_sentMessages[item.id] = item
+                else
+                    # Send a message signifying we're done
+                    worker.send({ action: "done" })
+            else if json.action == "queueItemResponse"
+                # Request from the client stating it has completed a task
 
-                # Send the item off
-                @_socket.send(JSON.stringify({
-                    action: "queueItemRequest",
-                    id: item.id,
-                    request: item.request
-                }))
-                
-                # Add the item to the pending tasks
-                @_sentMessages[item.id] = item
-            else
-                # Send a message signifying we're done
-                @_socket.send(JSON.stringify({
-                    action: "done"
-                }))
-        else if json.action == "queueItemResponse"
-            # Request from the client stating it has completed a task
+                # Look up the item
+                item = @_sentMessages[json.id]
 
-            # Look up the item
-            item = @_sentMessages[json.id]
+                if item
+                    # Finish up the item if it still exists
+                    item.finish(json.response)
+                    delete @_sentMessages[json.id]
 
-            if item
-                # Finish up the item if it still exists
-                item.finish(json.response)
-                delete @_sentMessages[json.id]
-
-                @_socket.send(JSON.stringify({
-                    action: "OK"
-                }))
-            else
-                # If the item doesn't exist, notify the client that the
-                # completion was ignored
-                @_socket.send(JSON.stringify({
-                    action: "ignored"
-                }))
+                    worker.send({ action: "OK" })
+                else
+                    # If the item doesn't exist, notify the client that the
+                    # completion was ignored
+                    worker.send({ action: "ignored" })
 
 class PhantomQueuedClusterClient extends PhantomClusterClient
     constructor: (options) ->
         super options
-
-        # Connection string for the ZeroMQ socket to connect to
-        @zmqConnectionString = options.zmqConnectionString or DEFAULT_ZMQ_CONNECTION_STRING
         
         # The ID of the message we're currently processing
         @currentRequestId = null
 
-        # ZeroMQ socket to listen to server responses on
-        @_socket = zmq.socket("req")
-        @_socket.connect(@zmqConnectionString)
-        @_socket.on "message", @_onSocketMessage
-
-        @on "stopped", @_onStop
         @on "workerReady", @_onWorkerReady
+        process.on "message", @_onMessage
 
     queueItemResponse: (response) ->
         # This method should be called by the function that handles a work
         # item. When the work item is completed, this function is called
         # with the response. The response will then be shipped off to the
-        # server over a ZeroMQ socket.
-        @_socket.send(JSON.stringify({
+        # server via IPC messaging.
+        process.send({
             action: "queueItemResponse",
             id: @currentRequestId,
             response: response
-        }))
+        })
 
         @next()
 
-    _onStop: () =>
-        # Close the socket on stop
-        @_socket.close()
-
-    _onSocketMessage: (message) =>
-        # Parse the message
-        json = JSON.parse(message.toString())
-
+    _onMessage: (json) =>
         if json.action == "queueItemRequest"
             # A response from the server that has a task for this client
             # to execute
@@ -313,9 +278,7 @@ class PhantomQueuedClusterClient extends PhantomClusterClient
 
     _onWorkerReady: () =>
         # When phantom is ready, make a request for a new task
-        @_socket.send(JSON.stringify({
-            action: "queueItemRequest"
-        }))
+        process.send({ action: "queueItemRequest" })
 
 # Holds a task in the queue
 class QueueItem extends events.EventEmitter

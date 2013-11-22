@@ -22,8 +22,7 @@
 
     "devDependencies": {
         "nodeunit": "0.8.2",
-        "coffee-script": "1.6.3",
-        "zmq": "2.5.1"
+        "coffee-script": "1.6.3"
     },
 
     "license": "MIT"
