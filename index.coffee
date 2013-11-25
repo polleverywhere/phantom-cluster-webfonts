@@ -23,16 +23,16 @@ empty = (obj) ->
 # Creates a new cluster
 create = (options) ->
     if cluster.isMaster
-        new PhantomClusterServer(options)
+        new PhantomClusterServer(options or {})
     else
-        new PhantomClusterClient(options)
+        new PhantomClusterClient(options or {})
 
 # Creates a cluster with a work queue
 createQueued = (options) ->
     if cluster.isMaster
-        new PhantomQueuedClusterServer(options)
+        new PhantomQueuedClusterServer(options or {})
     else
-        new PhantomQueuedClusterClient(options)
+        new PhantomQueuedClusterClient(options or {})
 
 # A basic cluster server/master. Communication is not handled in this,
 # although it can be extended to use whatever communication primitives, as is
