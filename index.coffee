@@ -162,14 +162,9 @@ class PhantomQueuedClusterServer extends PhantomClusterServer
         # Counter for generating unique message IDs
         @_messageIdCounter = 0
 
-        # Timer to check when we're out of tasks and stop the server
-        @_stopCheckingInterval = null
-
         # Queue if pending tasks
         @queue = []
 
-        @on "started", @_onStart
-        @on "stopped", @_onStop
         @on "workerStarted", @_onWorkerStarted
 
     enqueue: (request) ->
@@ -182,18 +177,6 @@ class PhantomQueuedClusterServer extends PhantomClusterServer
 
         @queue.push(item)
         item
-
-    _onStart: () =>
-        # Starts the timer to check for completion
-        @_stopCheckingInterval = setInterval(() =>
-            # When there are no tasks pending completion, and there are no
-            # tasks waiting to be run by a worker, exit out
-            if not @done and @queue.length == 0 and empty(@_sentMessages) then @stop()
-        , STOP_QUEUE_CHECKING_INTERVAL)
-
-    _onStop: () =>
-        # Close the socket and kill the timer on stop
-        if @_stopCheckingInterval != null then clearInterval(@_stopCheckingInterval)
 
     _onWorkerStarted: (worker) =>
         worker.on "message", (json) =>

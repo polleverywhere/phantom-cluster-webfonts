@@ -11,16 +11,29 @@ WEBSITES = {
     "http://www.themuse.com/developers": "The Muse - Career advice and better job search",
 }
 
-# Adds the listeners for a item. This is put in a separate function to prevent
-# scoping issues in javascript.
-addItemListeners = (item) ->
-    # Fires when the item times out and has to be re-enqueued
-    item.on "timeout", () -> console.log("# Queue item timed out, re-enqueueing #{item.id}")
+# Enqueues the requests
+enqueueRequests = (engine) ->
+    fulfilled = 0
 
-    # Fires when there's a response for this item. Validate it.
-    item.on "response", () ->
-        console.log("# Response")
-        if WEBSITES[item.request] != item.response then throw new Error("Unexpected response for #{item.request}: #{item.response}")
+    enqueuer = (request) ->
+        item = engine.enqueue(request)
+
+        # Fires when the item times out and has to be re-enqueued
+        item.on "timeout", () ->
+            console.log("# Queue item timed out, re-enqueueing #{item.id}")
+            enqueuer(request)
+
+        # Fires when there's a response for this item. Validate it.
+        item.on "response", () ->
+            console.log("# Response")
+            if WEBSITES[item.request] != item.response then throw new Error("Unexpected response for #{item.request}: #{item.response}")
+
+            fulfilled += 1
+            if fulfilled == 16 then process.nextTick(() -> engine.stop())
+
+    for i in [0...4]
+        for key of WEBSITES
+            enqueuer(key)
 
 # The main callback
 main = () ->
@@ -32,10 +45,7 @@ main = () ->
     })
 
     # If this is the master, enqueue all the tasks
-    if cluster.isMaster
-        for i in [0...4]
-            for key of WEBSITES
-                addItemListeners(engine.enqueue(key))
+    if cluster.isMaster then enqueueRequests(engine)
 
     # Called when a worker starts up
     engine.on "workerStarted", (worker) -> console.log("# Worker started: " + worker.id)

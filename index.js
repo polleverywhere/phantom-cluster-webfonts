@@ -27,17 +27,17 @@
 
   create = function(options) {
     if (cluster.isMaster) {
-      return new PhantomClusterServer(options);
+      return new PhantomClusterServer(options || {});
     } else {
-      return new PhantomClusterClient(options);
+      return new PhantomClusterClient(options || {});
     }
   };
 
   createQueued = function(options) {
     if (cluster.isMaster) {
-      return new PhantomQueuedClusterServer(options);
+      return new PhantomQueuedClusterServer(options || {});
     } else {
-      return new PhantomQueuedClusterClient(options);
+      return new PhantomQueuedClusterClient(options || {});
     }
   };
 
@@ -154,16 +154,11 @@
 
     function PhantomQueuedClusterServer(options) {
       this._onWorkerStarted = __bind(this._onWorkerStarted, this);
-      this._onStop = __bind(this._onStop, this);
-      this._onStart = __bind(this._onStart, this);
       PhantomQueuedClusterServer.__super__.constructor.call(this, options);
       this.messageTimeout = options.messageTimeout || DEFAULT_MESSAGE_TIMEOUT;
       this._sentMessages = {};
       this._messageIdCounter = 0;
-      this._stopCheckingInterval = null;
       this.queue = [];
-      this.on("started", this._onStart);
-      this.on("stopped", this._onStop);
       this.on("workerStarted", this._onWorkerStarted);
     }
 
@@ -172,26 +167,10 @@
         _this = this;
       item = new QueueItem(this._messageIdCounter++, request);
       item.on("timeout", function() {
-        delete _this._sentMessages[item.id];
-        return _this.enqueue(request);
+        return delete _this._sentMessages[item.id];
       });
       this.queue.push(item);
       return item;
-    };
-
-    PhantomQueuedClusterServer.prototype._onStart = function() {
-      var _this = this;
-      return this._stopCheckingInterval = setInterval(function() {
-        if (!_this.done && _this.queue.length === 0 && empty(_this._sentMessages)) {
-          return _this.stop();
-        }
-      }, STOP_QUEUE_CHECKING_INTERVAL);
-    };
-
-    PhantomQueuedClusterServer.prototype._onStop = function() {
-      if (this._stopCheckingInterval !== null) {
-        return clearInterval(this._stopCheckingInterval);
-      }
     };
 
     PhantomQueuedClusterServer.prototype._onWorkerStarted = function(worker) {
