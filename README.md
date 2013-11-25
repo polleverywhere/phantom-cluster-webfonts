@@ -121,7 +121,7 @@ additionally:
 
 ### PhantomQueuedClusterServer
 
-This extends `PhantomClusterServer`, so includes all of their
+This extends `PhantomClusterServer`, so it includes all of their
 methods/events/properties.
 
 #### Methods
@@ -136,14 +136,14 @@ methods/events/properties.
 
 ### PhantomQueuedClusterClient
 
-This extends `PhantomClusterClient`, so includes all of their
+This extends `PhantomClusterClient`, so it includes all of their
 methods/events/properties.
 
 #### Methods
 
 * `queueItemResponse`: Call this method instead of `next` when you've 
-  processing the current request. Pass the response as an argument, which will
-  in turn be passed to the server.
+  processing the current request, as it notify the server. Pass the response
+  as an argument, which will in turn be passed to the server.
 
 #### Events
 
