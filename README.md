@@ -15,7 +15,7 @@ For a full example, see
 ## Communication-agnostic engines
 
 If you want to use a custom communication mechanism, or do not wish to use a
-FIFO queue, you can use the communication-agnostic instead, represented with
+FIFO queue, you can use the communication-agnostic engines, represented with
 `PhantomClusterServer` and `PhantomClusterClient`. In this mode, the server
 spins up workers, and workers coordinate access to the phantomjs process, but
 that's it. It's up to you to figure out how to get the server to send requests
@@ -33,8 +33,8 @@ The options for `create`:
   CPUs available.)
 * `iterations`: The number of work iterations to execute before killing this
   worker and restarting it. This is available to prevent phantomjs memory
-  leaks from exhausting all the system memory (defaults to 100).
-* `phantomArguments`: An array of string specifying command-line arguments to
+  leaks from exhausting all the system memory (defaults to 100.)
+* `phantomArguments`: An array of strings specifying command-line arguments to
   pass into the phantomjs process. See
   [the phantomjs docs](https://github.com/ariya/phantomjs/wiki/API-Reference#command-line-options)
   for a list of available arguments. Defaults to no arguments.
@@ -79,7 +79,8 @@ If the process is a worker, you'll be returned an instance of
 
 * `phantomStarted`: The phantom instance has started up.
 * `phantomDied`: The phantom instance has died.
-* `workerReady`: Listen for this event  
+* `workerReady`: Attach a listener to this event to handle a request. It will
+  be called when phantomjs is ready.
 * `started`: The engine has started.
 * `stopped`: The engine has stopped.
 
