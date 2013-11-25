@@ -101,9 +101,8 @@ built-in IPC mechanism. This should suit most needs and is the default setup.
 In this setup, requests should be
 [idempotent](https://en.wikipedia.org/wiki/Idempotence) - that is, multiple
 executions of the request should yield the same result. This is because
-requests have a built-in timeout. If the timeout is reached, then the request
-is re-enqueued. This is to prevent lost requests from, e.g. workers that
-suddenly die.
+requests have a built-in timeout. This is to prevent lost requests from, e.g.
+workers that suddenly die.
 
 Spin up new instances of these classes via `createQueued()`, i.e.:
 
@@ -160,8 +159,7 @@ method.
 
 * `response`: Fired when there is a response that's been returned from a
   worker.
-* `timeout`: Fired when the request has timed out. It will automatically be
-  re-enqueued.
+* `timeout`: Fired when the request has timed out.
 
 #### Properties
 

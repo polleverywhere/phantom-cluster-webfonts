@@ -176,10 +176,9 @@ class PhantomQueuedClusterServer extends PhantomClusterServer
         # Enqueues a new request to pass off to a client
         item = new QueueItem(@_messageIdCounter++, request)
 
+        # When an item times out, remove it from the sent messages
         item.on "timeout", () =>
-            # When an item times out, re-enqueue it
             delete @_sentMessages[item.id]
-            @enqueue(request)
 
         @queue.push(item)
         item
