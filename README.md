@@ -9,6 +9,9 @@ too many memory-intensive phantomjs instances. Further, there's some added
 logic to automatically restart workers after a few iterations to prevent
 memory leaks.
 
+For a full example, see
+[example.coffee](https://github.com/dailymuse/phantom-cluster/blob/master/example.coffee).
+
 ## Communication-agnostic engines
 
 If you want to use a custom communication mechanism, or do not wish to use a
