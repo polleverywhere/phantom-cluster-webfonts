@@ -186,7 +186,7 @@ class PhantomQueuedClusterServer extends PhantomClusterServer
             delete @_sentMessages[item.id]
 
         if @clientsQueue.length > 0
-            @_sendQueueItemRequest(@clientsQueue.shift())
+            @_sendQueueItemRequest(@clientsQueue.shift(), item)
         else
             @queue.push(item)
 
@@ -198,7 +198,7 @@ class PhantomQueuedClusterServer extends PhantomClusterServer
                 # Request from the client for a new work item
 
                 if @queue.length > 0
-                    @_sendQueueItemRequest(worker)
+                    @_sendQueueItemRequest(worker, @queue.shift())
                 else
                     @clientsQueue.push(worker)
             else if json.action == "queueItemResponse"
@@ -218,10 +218,7 @@ class PhantomQueuedClusterServer extends PhantomClusterServer
                     # completion was ignored
                     worker.send({ action: "ignored" })
 
-    _sendQueueItemRequest: (worker) ->
-        # Give a new work item if the queue isn't empty
-        item = @queue.shift()
-
+    _sendQueueItemRequest: (worker, item) ->
         # Start the item, which will start the timeout on it
         item.start(@messageTimeout)
 
