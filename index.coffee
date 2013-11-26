@@ -107,6 +107,9 @@ class PhantomClusterClient extends events.EventEmitter
         # Whether we're done
         @done = false
 
+        process.on("SIGTERM", @_onExit)
+        process.on("SIGINT", @_onExit)
+
     start: () ->
         options = {
             binary: @phantomBinary,
@@ -147,6 +150,10 @@ class PhantomClusterClient extends events.EventEmitter
             @emit("stopped")
             process.nextTick(() -> process.exit(0))
 
+    # Fix for 
+    _onExit: () =>
+        process.exit()
+
 # A cluster server/master that has a queue of work items. Items are passed off to clients
 # to run via IPC messaging.
 class PhantomQueuedClusterServer extends PhantomClusterServer
@@ -165,6 +172,9 @@ class PhantomQueuedClusterServer extends PhantomClusterServer
         # Queue if pending tasks
         @queue = []
 
+        # Queue of clients waiting to run a task
+        @clientsQueue = []
+
         @on "workerStarted", @_onWorkerStarted
 
     enqueue: (request) ->
@@ -175,7 +185,11 @@ class PhantomQueuedClusterServer extends PhantomClusterServer
         item.on "timeout", () =>
             delete @_sentMessages[item.id]
 
-        @queue.push(item)
+        if @clientsQueue.length > 0
+            @_sendQueueItemRequest(@clientsQueue.shift())
+        else
+            @queue.push(item)
+
         item
 
     _onWorkerStarted: (worker) =>
@@ -184,24 +198,9 @@ class PhantomQueuedClusterServer extends PhantomClusterServer
                 # Request from the client for a new work item
 
                 if @queue.length > 0
-                    # Give a new work item if the queue isn't empty
-                    item = @queue.shift()
-
-                    # Start the item, which will start the timeout on it
-                    item.start(@messageTimeout)
-
-                    # Send the item off
-                    worker.send({
-                        action: "queueItemRequest",
-                        id: item.id,
-                        request: item.request
-                    })
-                    
-                    # Add the item to the pending tasks
-                    @_sentMessages[item.id] = item
+                    @_sendQueueItemRequest(worker)
                 else
-                    # Send a message signifying we're done
-                    worker.send({ action: "done" })
+                    @clientsQueue.push(worker)
             else if json.action == "queueItemResponse"
                 # Request from the client stating it has completed a task
 
@@ -218,6 +217,23 @@ class PhantomQueuedClusterServer extends PhantomClusterServer
                     # If the item doesn't exist, notify the client that the
                     # completion was ignored
                     worker.send({ action: "ignored" })
+
+    _sendQueueItemRequest: (worker) ->
+        # Give a new work item if the queue isn't empty
+        item = @queue.shift()
+
+        # Start the item, which will start the timeout on it
+        item.start(@messageTimeout)
+
+        # Send the item off
+        worker.send({
+            action: "queueItemRequest",
+            id: item.id,
+            request: item.request
+        })
+        
+        # Add the item to the pending tasks
+        @_sentMessages[item.id] = item
 
 class PhantomQueuedClusterClient extends PhantomClusterClient
     constructor: (options) ->
@@ -253,10 +269,6 @@ class PhantomQueuedClusterClient extends PhantomClusterClient
             # response from us
             if json.status not in ["OK", "ignored"]
                 throw new Error("Unexpected status code from queueItemResponse message: #{json.status}")
-        else if json.action == "done"
-            # A response from the server saying there are no tasks left.
-            # Exit out.
-            @stop()
 
     _onWorkerReady: () =>
         # When phantom is ready, make a request for a new task

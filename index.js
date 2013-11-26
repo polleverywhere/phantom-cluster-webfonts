@@ -95,6 +95,7 @@
     __extends(PhantomClusterClient, _super);
 
     function PhantomClusterClient(options) {
+      this._onExit = __bind(this._onExit, this);
       PhantomClusterClient.__super__.constructor.apply(this, arguments);
       this.ph = null;
       this.iterations = options.workerIterations || DEFAULT_WORKER_ITERATIONS;
@@ -102,6 +103,8 @@
       this.phantomBinary = options.phantomBinary || require("phantomjs").path;
       this.phantomBasePort = this.phantomBasePort || 12300;
       this.done = false;
+      process.on("SIGTERM", this._onExit);
+      process.on("SIGINT", this._onExit);
     }
 
     PhantomClusterClient.prototype.start = function() {
@@ -145,6 +148,10 @@
       }
     };
 
+    PhantomClusterClient.prototype._onExit = function() {
+      return process.exit();
+    };
+
     return PhantomClusterClient;
 
   })(events.EventEmitter);
@@ -159,6 +166,7 @@
       this._sentMessages = {};
       this._messageIdCounter = 0;
       this.queue = [];
+      this.clientsQueue = [];
       this.on("workerStarted", this._onWorkerStarted);
     }
 
@@ -169,7 +177,11 @@
       item.on("timeout", function() {
         return delete _this._sentMessages[item.id];
       });
-      this.queue.push(item);
+      if (this.clientsQueue.length > 0) {
+        this._sendQueueItemRequest(this.clientsQueue.shift());
+      } else {
+        this.queue.push(item);
+      }
       return item;
     };
 
@@ -179,18 +191,9 @@
         var item;
         if (json.action === "queueItemRequest") {
           if (_this.queue.length > 0) {
-            item = _this.queue.shift();
-            item.start(_this.messageTimeout);
-            worker.send({
-              action: "queueItemRequest",
-              id: item.id,
-              request: item.request
-            });
-            return _this._sentMessages[item.id] = item;
+            return _this._sendQueueItemRequest(worker);
           } else {
-            return worker.send({
-              action: "done"
-            });
+            return _this.clientsQueue.push(worker);
           }
         } else if (json.action === "queueItemResponse") {
           item = _this._sentMessages[json.id];
@@ -207,6 +210,18 @@
           }
         }
       });
+    };
+
+    PhantomQueuedClusterServer.prototype._sendQueueItemRequest = function(worker) {
+      var item;
+      item = this.queue.shift();
+      item.start(this.messageTimeout);
+      worker.send({
+        action: "queueItemRequest",
+        id: item.id,
+        request: item.request
+      });
+      return this._sentMessages[item.id] = item;
     };
 
     return PhantomQueuedClusterServer;
@@ -243,8 +258,6 @@
         if ((_ref = json.status) !== "OK" && _ref !== "ignored") {
           throw new Error("Unexpected status code from queueItemResponse message: " + json.status);
         }
-      } else if (json.action === "done") {
-        return this.stop();
       }
     };
 
