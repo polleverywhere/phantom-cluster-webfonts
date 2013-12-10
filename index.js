@@ -171,15 +171,17 @@
     }
 
     PhantomQueuedClusterServer.prototype.enqueue = function(request) {
-      var item,
+      var item, sent,
         _this = this;
       item = new QueueItem(this._messageIdCounter++, request);
       item.on("timeout", function() {
         return delete _this._sentMessages[item.id];
       });
-      if (this.clientsQueue.length > 0) {
-        this._sendQueueItemRequest(this.clientsQueue.shift(), item);
-      } else {
+      sent = false;
+      while (this.clientsQueue.length > 0 && !sent) {
+        sent = this._sendQueueItemRequest(this.clientsQueue.shift(), item);
+      }
+      if (!sent) {
         this.queue.push(item);
       }
       return item;
@@ -188,10 +190,14 @@
     PhantomQueuedClusterServer.prototype._onWorkerStarted = function(worker) {
       var _this = this;
       return worker.on("message", function(json) {
-        var item;
+        var item, sent;
         if (json.action === "queueItemRequest") {
           if (_this.queue.length > 0) {
-            return _this._sendQueueItemRequest(worker, _this.queue.shift());
+            item = _this.queue.shift();
+            sent = _this._sendQueueItemRequest(worker, item);
+            if (!sent) {
+              return _this.enqueue(item.request);
+            }
           } else {
             return _this.clientsQueue.push(worker);
           }
@@ -213,13 +219,18 @@
     };
 
     PhantomQueuedClusterServer.prototype._sendQueueItemRequest = function(worker, item) {
+      try {
+        worker.send({
+          action: "queueItemRequest",
+          id: item.id,
+          request: item.request
+        });
+      } catch (_error) {
+        return false;
+      }
       item.start(this.messageTimeout);
-      worker.send({
-        action: "queueItemRequest",
-        id: item.id,
-        request: item.request
-      });
-      return this._sentMessages[item.id] = item;
+      this._sentMessages[item.id] = item;
+      return true;
     };
 
     return PhantomQueuedClusterServer;

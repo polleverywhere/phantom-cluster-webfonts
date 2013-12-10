@@ -185,11 +185,12 @@ class PhantomQueuedClusterServer extends PhantomClusterServer
         item.on "timeout", () =>
             delete @_sentMessages[item.id]
 
-        if @clientsQueue.length > 0
-            @_sendQueueItemRequest(@clientsQueue.shift(), item)
-        else
-            @queue.push(item)
+        sent = false
 
+        while @clientsQueue.length > 0 and not sent
+            sent = @_sendQueueItemRequest(@clientsQueue.shift(), item)
+        
+        if not sent then @queue.push(item)
         item
 
     _onWorkerStarted: (worker) =>
@@ -198,7 +199,9 @@ class PhantomQueuedClusterServer extends PhantomClusterServer
                 # Request from the client for a new work item
 
                 if @queue.length > 0
-                    @_sendQueueItemRequest(worker, @queue.shift())
+                    item = @queue.shift()
+                    sent = @_sendQueueItemRequest(worker, item)
+                    if not sent then @enqueue(item.request)
                 else
                     @clientsQueue.push(worker)
             else if json.action == "queueItemResponse"
@@ -219,18 +222,22 @@ class PhantomQueuedClusterServer extends PhantomClusterServer
                     worker.send({ action: "ignored" })
 
     _sendQueueItemRequest: (worker, item) ->
+        # Send the item off
+        try
+            worker.send({
+                action: "queueItemRequest",
+                id: item.id,
+                request: item.request
+            })
+        catch
+            return false
+
         # Start the item, which will start the timeout on it
         item.start(@messageTimeout)
-
-        # Send the item off
-        worker.send({
-            action: "queueItemRequest",
-            id: item.id,
-            request: item.request
-        })
         
         # Add the item to the pending tasks
         @_sentMessages[item.id] = item
+        return true
 
 class PhantomQueuedClusterClient extends PhantomClusterClient
     constructor: (options) ->

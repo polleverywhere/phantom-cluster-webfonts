@@ -1,12 +1,12 @@
 {
     "name": "phantom-cluster",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "author": "Yusuf Simonson <yusuf@themuse.com>",
     "description": "Provides a cluster of workers for phantomjs processing",
 
     "repository": {
         "type": "git",
-        "url": "https://github.com/dotcloud/phantom-cluster"
+        "url": "https://github.com/dailymuse/phantom-cluster"
     },
 
     "keywords": [
