@@ -1,4 +1,4 @@
-all: deps build test
+all: deps build
 
 deps:
 	npm install
