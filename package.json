@@ -1,6 +1,6 @@
 {
     "name": "phantom-cluster",
-    "version": "0.0.2",
+    "version": "0.1.0",
     "author": "Yusuf Simonson <yusuf@themuse.com>",
     "description": "Provides a cluster of workers for phantomjs processing",
 
