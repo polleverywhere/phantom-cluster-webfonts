@@ -17,7 +17,7 @@
 
     "dependencies": {
         "phantomjs": "~1.9.2-0",
-        "phantom": "git://github.com/dailymuse/phantomjs-node.git#6f053231b6e88a34556f56ad8b9d38fb2d206b33"
+        "phantom": "git://github.com/sgentle/phantomjs-node.git#e029778ec4d936c21a316bf66bb92d3a6534e166"
     },
 
     "devDependencies": {
