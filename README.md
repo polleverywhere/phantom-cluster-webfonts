@@ -29,9 +29,9 @@ Spin up new instances of these classes via `create()`, i.e.:
 
 The options for `create`:
 
-* `numWorkers`: The number of workers to spin up (defaults to the number of
+* `workers`: The number of workers to spin up (defaults to the number of
   CPUs available.)
-* `iterations`: The number of work iterations to execute before killing this
+* `workerIterations`: The number of work iterations to execute before killing this
   worker and restarting it. This is available to prevent phantomjs memory
   leaks from exhausting all the system memory (defaults to 100.)
 * `phantomArguments`: An array of strings specifying command-line arguments to
