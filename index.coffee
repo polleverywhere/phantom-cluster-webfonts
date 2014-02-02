@@ -106,7 +106,7 @@ class PhantomClusterClient extends events.EventEmitter
 
         # Base port to start the phantom process. The worker ID is added to
         # this to create a unique port.
-        @phantomBasePort = this.phantomBasePort or 12300
+        @phantomBasePort = options.phantomBasePort or 12300
 
         # Whether we're done
         @done = false
