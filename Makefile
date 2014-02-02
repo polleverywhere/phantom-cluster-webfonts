@@ -1,4 +1,4 @@
-all: deps build
+all: deps build test
 
 deps:
 	npm install
@@ -8,3 +8,6 @@ build:
 
 example: build
 	node example.js
+
+test: build
+	./node_modules/nodeunit/bin/nodeunit test.js
