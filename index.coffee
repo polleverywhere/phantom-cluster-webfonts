@@ -294,23 +294,28 @@ class QueueItem extends events.EventEmitter
         # The timeout for the item, which re-enqueues it
         @timeout = null
 
-        # Whether the QueueItem was started at any point
-        @started = false
+        # What state the QueueItem is in
+        # 0 - not started
+        # 1 - started
+        # 2 - finished
+        @state = 0
 
     start: (timeout) ->
-        if @started
-            throw new Exception("QueueItem cannot be started more than once")
+        if @state != 0
+            throw new Error("Bad QueueItem state")
 
-        @started = true
+        @state = 1
         @timeout = setTimeout(@_onTimeout, timeout)
 
     finish: (response) ->
-        if not @started
-            throw new Exception("QueueItem cannot be finished without being started first")
+        if @state != 1
+            throw new Error("Bad QueueItem state")
 
         # Close the timeout and set the response
         clearTimeout(@timeout)
+        @timeout = null
         @response = response
+        @state = 2
         @emit("response")
 
     _onTimeout: () =>
@@ -323,3 +328,4 @@ exports.PhantomClusterServer = PhantomClusterServer
 exports.PhantomClusterClient = PhantomClusterClient
 exports.PhantomQueuedClusterServer = PhantomQueuedClusterServer
 exports.PhantomQueuedClusterClient = PhantomQueuedClusterClient
+exports.QueueItem = QueueItem
