@@ -15,6 +15,7 @@ STOP_QUEUE_CHECKING_INTERVAL = 10
 # it for another worker to execute.
 DEFAULT_MESSAGE_TIMEOUT = 60 * 1000
 
+# Default number of workers to create if none are specified
 DEFAULT_WORKERS = os.cpus().length
 
 # Checks whether an object is empty
