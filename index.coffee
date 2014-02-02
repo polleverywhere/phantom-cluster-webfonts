@@ -277,7 +277,7 @@ class PhantomQueuedClusterClient extends PhantomClusterClient
 
 # Holds a task in the queue
 class QueueItem extends events.EventEmitter
-    constructor: (id, request, timeout) ->
+    constructor: (id, request) ->
         # The unique ID of the item
         @id = id
 
