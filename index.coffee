@@ -294,17 +294,26 @@ class QueueItem extends events.EventEmitter
         # The timeout for the item, which re-enqueues it
         @timeout = null
 
+        # Whether the QueueItem was started at any point
+        @started = false
+
     start: (timeout) ->
-        # Start the timeout
-        @timeout = setTimeout(@_timeout, timeout)
+        if @started
+            throw new Exception("QueueItem cannot be started more than once")
+
+        @started = true
+        @timeout = setTimeout(@_onTimeout, timeout)
 
     finish: (response) ->
+        if not @started
+            throw new Exception("QueueItem cannot be finished without being started first")
+
         # Close the timeout and set the response
-        if @timeout then clearTimeout(@timeout)
+        clearTimeout(@timeout)
         @response = response
         @emit("response")
 
-    _timeout: () =>
+    _onTimeout: () =>
         # Emit the timeout event
         @emit("timeout")
 
