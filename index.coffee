@@ -1,6 +1,7 @@
 phantom = require("phantom")
 cluster = require("cluster")
 events = require("events")
+os = require("os")
 
 # Default number of iterations to execute per worker before killing the worker
 # process. This is done to prevent memory leaks from phantomjs.
@@ -13,6 +14,8 @@ STOP_QUEUE_CHECKING_INTERVAL = 10
 # Default time to wait (in ms) before considering a job dead and re-spawning
 # it for another worker to execute.
 DEFAULT_MESSAGE_TIMEOUT = 60 * 1000
+
+DEFAULT_WORKERS = os.cpus().length
 
 # Checks whether an object is empty
 empty = (obj) ->
@@ -42,7 +45,7 @@ class PhantomClusterServer extends events.EventEmitter
         super
 
         # Number of workers to spawn
-        @numWorkers = options.workers or require("os").cpus().length
+        @numWorkers = options.workers or DEFAULT_WORKERS
 
         # Object of worker IDs -> worker objects
         @workers = {}
