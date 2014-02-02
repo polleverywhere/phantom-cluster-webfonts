@@ -44,6 +44,7 @@ createQueued = (options) ->
 class PhantomClusterServer extends events.EventEmitter
     constructor: (options) ->
         super
+        options = options or {}
 
         # Number of workers to spawn
         @numWorkers = options.workers or DEFAULT_WORKERS
@@ -91,6 +92,7 @@ class PhantomClusterServer extends events.EventEmitter
 class PhantomClusterClient extends events.EventEmitter
     constructor: (options) ->
         super
+        options = options or {}
 
         # Phantom instance
         @ph = null
@@ -155,6 +157,7 @@ class PhantomClusterClient extends events.EventEmitter
 # to run via IPC messaging.
 class PhantomQueuedClusterServer extends PhantomClusterServer
     constructor: (options) ->
+        options = options or {}
         super options
 
         # Timeout (in ms) before a message is considered dead
@@ -238,6 +241,7 @@ class PhantomQueuedClusterServer extends PhantomClusterServer
 
 class PhantomQueuedClusterClient extends PhantomClusterClient
     constructor: (options) ->
+        options = options or {}
         super options
         
         # The ID of the message we're currently processing
