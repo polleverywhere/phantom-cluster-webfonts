@@ -65,53 +65,6 @@
     return c.start();
   };
 
-  exports.testPhantomQueuedEngine = function(test) {
-    var engine, expectedMessageId, expectedTitle, item, url, _fn;
-    test.expect(cluster.isMaster ? 9 : 0);
-    engine = phantomCluster.createQueued({
-      workers: 1
-    });
-    engine.on("queueItemReady", function(url) {
-      var _this = this;
-      return this.ph.createPage(function(page) {
-        return page.open(url, function(status) {
-          return page.evaluate((function() {
-            return document.title;
-          }), function(result) {
-            return _this.queueItemResponse(result);
-          });
-        });
-      });
-    });
-    if (cluster.isMaster) {
-      test.equal(engine._messageIdCounter, 0);
-      test.equal(engine.queue, []);
-      test.equal(engine.clientsQueue, []);
-      expectedMessageId = 0;
-      item = null;
-      _fn = function(url, expectedTitle) {
-        item = engine.enqueue(url);
-        item.on("timeout", function() {
-          throw new Error("Item timed out");
-        });
-        return item.on("response", function() {
-          return test.equal(expectedTitle, item.response);
-        });
-      };
-      for (url in WEBSITES) {
-        expectedTitle = WEBSITES[url];
-        _fn(url, expectedTitle);
-        test.equal(engine._messageIdCounter, expectedMessageId++);
-      }
-      item.on("response", function() {
-        return setTimeout(function() {
-          return test.done();
-        }, 1000);
-      });
-    }
-    return engine.start();
-  };
-
   exports.testQueueItem = function(test) {
     var i1;
     test.expect(12);
