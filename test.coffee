@@ -34,7 +34,7 @@ exports.testPhantomClusterServer = (test) ->
     test.equal(s.done, true)
     test.done()
 
-exports.testPhantomClusterClient = (test) ->
+exports.testPhantomClusterWorker = (test) ->
     test.expect(7)
 
     # Mock for tests
@@ -43,7 +43,7 @@ exports.testPhantomClusterClient = (test) ->
         workerParallelism: 2
     }
 
-    c = new phantomCluster.PhantomClusterClient({})
+    c = new phantomCluster.PhantomClusterWorker({})
 
     test.equal(c.ph, null)
     test.equal(c.done, false)

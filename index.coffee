@@ -32,14 +32,14 @@ create = (options) ->
     if cluster.isMaster
         new PhantomClusterServer(options or {})
     else
-        new PhantomClusterClient(options or {})
+        new PhantomClusterWorker(options or {})
 
 # Creates a cluster with a work queue
 createQueued = (options) ->
     if cluster.isMaster
         new PhantomQueuedClusterServer(options or {})
     else
-        new PhantomQueuedClusterClient(options or {})
+        new PhantomQueuedClusterWorker(options or {})
 
 # A basic cluster server/master. Communication is not handled in this,
 # although it can be extended to use whatever communication primitives, as is
@@ -89,10 +89,10 @@ class PhantomClusterServer extends events.EventEmitter
 
             @emit("stopped")
 
-# A basic cluster client/worker. Communication is not handled in this,
+# A basic cluster worker/worker. Communication is not handled in this,
 # although it can be extended to use whatever communication primitives, as is
-# done with PhantomQueuedClusterClient.
-class PhantomClusterClient extends events.EventEmitter
+# done with PhantomQueuedClusterWorker.
+class PhantomClusterWorker extends events.EventEmitter
     constructor: (options) ->
         super
         options = options or {}
@@ -100,7 +100,7 @@ class PhantomClusterClient extends events.EventEmitter
         # Phantom instance
         @ph = null
 
-        # Number of iterations to perform before killing this client
+        # Number of iterations to perform before killing this worker
         @iterations = options.workerIterations or DEFAULT_WORKER_ITERATIONS
 
         # Number of items to work on in parallel
@@ -167,7 +167,7 @@ class PhantomClusterClient extends events.EventEmitter
             @emit("stopped")
             process.nextTick(() -> process.exit(0))
 
-# A cluster server/master that has a queue of work items. Items are passed off to clients
+# A cluster server/master that has a queue of work items. Items are passed off to workers
 # to run via IPC messaging.
 class PhantomQueuedClusterServer extends PhantomClusterServer
     constructor: (options) ->
@@ -184,15 +184,15 @@ class PhantomQueuedClusterServer extends PhantomClusterServer
         @_messageIdCounter = 0
 
         # Queue if pending tasks
-        @queue = []
+        @itemsQueue = []
 
-        # Queue of clients waiting to run a task
-        @clientsQueue = []
+        # Queue of workers waiting to run a task
+        @workersQueue = []
 
         @on "workerStarted", @_onWorkerStarted
 
     enqueue: (request) ->
-        # Enqueues a new request to pass off to a client
+        # Enqueues a new request to pass off to a worker
         item = new QueueItem(@_messageIdCounter++, request)
 
         # When an item times out, remove it from the sent messages
@@ -201,25 +201,25 @@ class PhantomQueuedClusterServer extends PhantomClusterServer
 
         sent = false
 
-        while @clientsQueue.length > 0 and not sent
-            sent = @_sendQueueItemRequest(@clientsQueue.shift(), item)
+        while @workersQueue.length > 0 and not sent
+            sent = @_sendQueueItemRequest(@workersQueue.shift(), item)
         
-        if not sent then @queue.push(item)
+        if not sent then @itemsQueue.push(item)
         item
 
     _onWorkerStarted: (worker) =>
         worker.on "message", (json) =>
             if json.action == "queueItemRequest"
-                # Request from the client for a new work item
+                # Request from the worker for a new work item
 
-                if @queue.length > 0
-                    item = @queue.shift()
+                if @itemsQueue.length > 0
+                    item = @itemsQueue.shift()
                     sent = @_sendQueueItemRequest(worker, item)
                     if not sent then @enqueue(item.request)
                 else
-                    @clientsQueue.push(worker)
+                    @workersQueue.push(worker)
             else if json.action == "queueItemResponse"
-                # Request from the client stating it has completed a task
+                # Request from the worker stating it has completed a task
 
                 # Look up the item
                 item = @_sentMessages[json.id]
@@ -231,7 +231,7 @@ class PhantomQueuedClusterServer extends PhantomClusterServer
 
                     worker.send({ action: "OK" })
                 else
-                    # If the item doesn't exist, notify the client that the
+                    # If the item doesn't exist, notify the worker that the
                     # completion was ignored
                     worker.send({ action: "ignored" })
 
@@ -244,6 +244,8 @@ class PhantomQueuedClusterServer extends PhantomClusterServer
                 request: item.request
             })
         catch
+            # TODO: if an exception occurs here, then the worker will be
+            # hanging. Find a better error handling mechanism.
             return false
 
         # Start the item, which will start the timeout on it
@@ -253,7 +255,7 @@ class PhantomQueuedClusterServer extends PhantomClusterServer
         @_sentMessages[item.id] = item
         return true
 
-class PhantomQueuedClusterClient extends PhantomClusterClient
+class PhantomQueuedClusterWorker extends PhantomClusterWorker
     constructor: (options) ->
         options = options or {}
         super options
@@ -272,7 +274,7 @@ class PhantomQueuedClusterClient extends PhantomClusterClient
 
     _onMessage: (json) =>
         if json.action == "queueItemRequest"
-            # A response from the server that has a task for this client
+            # A response from the server that has a task for this worker
             # to execute
             item = new QueueItem(json.id, json.request)
 
@@ -358,7 +360,7 @@ class QueueItem extends events.EventEmitter
 exports.create = create
 exports.createQueued = createQueued
 exports.PhantomClusterServer = PhantomClusterServer
-exports.PhantomClusterClient = PhantomClusterClient
+exports.PhantomClusterWorker = PhantomClusterWorker
 exports.PhantomQueuedClusterServer = PhantomQueuedClusterServer
-exports.PhantomQueuedClusterClient = PhantomQueuedClusterClient
+exports.PhantomQueuedClusterWorker = PhantomQueuedClusterWorker
 exports.QueueItem = QueueItem

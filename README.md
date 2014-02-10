@@ -5,11 +5,11 @@ phantomjs instances in parallel. Built-in functionality prevents memory leaks
 from phantomjs processes: the number of pages open at a time is capped, and
 workers are automatically restarted after a few iterations.
 
-Two modes are supported. `PhantomClusterServer` and `PhantomClusterClient`
+Two modes are supported. `PhantomClusterServer` and `PhantomClusterWorker`
 provide bare-bones functionality: they simply handle the clustering
-functionality, and leave it to you to determine how the server and clients
+functionality, and leave it to you to determine how the server and workers
 should coordinate work. The second, provided by `PhantomQueuedClusterServer`
-and `PhantomQueuedClusterClient` is opinionated on communication and worker
+and `PhantomQueuedClusterWorker` is opinionated on communication and worker
 methodology.
 
 For a full example, see
@@ -19,10 +19,10 @@ For a full example, see
 
 If you want to use a custom communication mechanism, or do not wish to use a
 FIFO queue, you can use the bare-bones engines, represented with
-`PhantomClusterServer` and `PhantomClusterClient`. In this mode, the server
+`PhantomClusterServer` and `PhantomClusterWorker`. In this mode, the server
 spins up workers, and workers coordinate access to the phantomjs process, but
 that's it. It's up to you to figure out how and when to get the server to send
-requests to clients.
+requests to workers.
 
 Spin up new instances of these classes via `create()`, i.e.:
 
@@ -49,7 +49,7 @@ The options for `create`:
   ports to communicate with the phantomjs process.
 
 If the process is a worker, you'll be returned an instance of
-`PhantomClusterClient`. Otherwise you'll be returned an instance of
+`PhantomClusterWorker`. Otherwise you'll be returned an instance of
 `PhantomClusterServer`.
 
 ### PhantomClusterServer
@@ -75,13 +75,13 @@ If the process is a worker, you'll be returned an instance of
 * `workers`: Mapping of worker IDs to worker objects.
 * `done`: Whether the engine is done (i.e. whether `stop()` has been called.)
 
-### PhantomClusterClient
+### PhantomClusterWorker
 
 #### Methods
 
 * `next`: Call this method when you've finished processing a request.
-* `start`: Starts the client.
-* `stop`: Stops the client.
+* `start`: Starts the worker.
+* `stop`: Stops the worker.
 
 #### Events
 
@@ -102,8 +102,8 @@ If the process is a worker, you'll be returned an instance of
 
 ## Queued engines
 
-phantom-cluster exposes a server/client setup that builds on the bare-bones
-server/client that processes requests via a FIFO queue. Communication between
+phantom-cluster exposes a server/worker setup that builds on the bare-bones
+server/worker that processes requests via a FIFO queue. Communication between
 the server and workers is facilitated via node.js' built-in IPC mechanism.
 This should suit most needs and is the default setup.
 
@@ -123,7 +123,7 @@ additionally:
 
 * `messageTimeout`: Sets the timeout for requests. After this timeout the
   request is re-enqueued. Again, you'll be returned either a
-  `PhantomQueuedClusterServer` or `PhantomQueuedClusterClient` depending on
+  `PhantomQueuedClusterServer` or `PhantomQueuedClusterWorker` depending on
   whether this is a worker process or not.
 
 ### PhantomQueuedClusterServer
@@ -139,12 +139,12 @@ methods/events/properties.
 
 #### Properties
 
-* `queue`: Contains the queue of unprocessed requests.
-* `clientsQueue`: Contains the queue of clients waiting to work on requests.
+* `itemsQueue`: Contains the queue of unprocessed requests.
+* `workersQueue`: Contains the queue of workers waiting to work on requests.
 
-### PhantomQueuedClusterClient
+### PhantomQueuedClusterWorker
 
-This extends `PhantomClusterClient`, so it includes all of their
+This extends `PhantomClusterWorker`, so it includes all of their
 methods/events/properties.
 
 #### Events
@@ -157,7 +157,7 @@ methods/events/properties.
 ### QueueItem
 
 Represents an item for processing for queued engines. Used by both servers
-(returned via `enqueue`) and by clients (passed to event listeners of
+(returned via `enqueue`) and by workers (passed to event listeners of
 `request`.)
 
 #### Methods

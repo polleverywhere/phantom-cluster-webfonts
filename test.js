@@ -39,14 +39,14 @@
     return test.done();
   };
 
-  exports.testPhantomClusterClient = function(test) {
+  exports.testPhantomClusterWorker = function(test) {
     var c;
     test.expect(7);
     cluster.worker = {
       id: 1,
       workerParallelism: 2
     };
-    c = new phantomCluster.PhantomClusterClient({});
+    c = new phantomCluster.PhantomClusterWorker({});
     test.equal(c.ph, null);
     test.equal(c.done, false);
     c.on("started", function() {
