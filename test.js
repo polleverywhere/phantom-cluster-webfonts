@@ -58,7 +58,7 @@
       c.next();
       test.equal(c.iterations, 99);
       return setTimeout(function() {
-        test.equal(c.iterations, 97);
+        test.equal(c.iterations, 98);
         return test.done();
       }, 0);
     });

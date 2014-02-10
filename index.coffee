@@ -8,7 +8,7 @@ os = require("os")
 DEFAULT_WORKER_ITERATIONS = 100
 
 # Default number of requests to handle in parallel.
-DEFAULT_WORKER_PARALLELISM = 2
+DEFAULT_WORKER_PARALLELISM = 1
 
 # How often to check for when the cluster should be shutdown. This happens
 # when the work queue is empty and there are no pending tasks left.

@@ -56,10 +56,10 @@ exports.testPhantomClusterClient = (test) ->
         c.next()
         test.equal(c.iterations, 99)
 
-        # Make sure .next() is implicitly called twice (based on
+        # Make sure .next() is called implicitly once (based on
         # `workerParallelism`) on phantom start
         setTimeout(() ->
-            test.equal(c.iterations, 97)
+            test.equal(c.iterations, 98)
             test.done()
         , 0)
     )
