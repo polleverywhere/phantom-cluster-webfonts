@@ -82,14 +82,12 @@
     engine.on("request", function(page, item) {
       var _this = this;
       console.log("# Ready to process " + item.request);
-      return this.ph.createPage(function(page) {
-        return page.open(item.request, function(status) {
-          return page.evaluate((function() {
-            return document.title;
-          }), function(result) {
-            console.log("# Finished request for " + item.request + ": " + result);
-            return item.finish(result);
-          });
+      return page.open(item.request, function(status) {
+        return page.evaluate((function() {
+          return document.title;
+        }), function(result) {
+          console.log("# Finished request for " + item.request + ": " + result);
+          return item.finish(result);
         });
       });
     });
