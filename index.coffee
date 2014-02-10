@@ -243,32 +243,33 @@ class PhantomQueuedClusterClient extends PhantomClusterClient
     constructor: (options) ->
         options = options or {}
         super options
-        
-        # The ID of the message we're currently processing
-        @currentRequestId = null
+
+        # Timeout (in ms) before a message is considered dead
+        @messageTimeout = options.messageTimeout or DEFAULT_MESSAGE_TIMEOUT
 
         @on "workerReady", @_onWorkerReady
         process.on "message", @_onMessage
-
-    queueItemResponse: (response) ->
-        # This method should be called by the function that handles a work
-        # item. When the work item is completed, this function is called
-        # with the response. The response will then be shipped off to the
-        # server via IPC messaging.
-        process.send({
-            action: "queueItemResponse",
-            id: @currentRequestId,
-            response: response
-        })
-
-        @next()
 
     _onMessage: (json) =>
         if json.action == "queueItemRequest"
             # A response from the server that has a task for this client
             # to execute
-            @currentRequestId = json.id
-            @emit("queueItemReady", json.request)
+            item = new QueueItem(json.id, json.request)
+
+            item.on("response", () =>
+                # When the work item is completed, send a response back to the
+                # server via IPC messaging.
+                process.send({
+                    action: "queueItemResponse",
+                    id: item.id,
+                    response: item.response
+                })
+
+                @next()
+            )
+
+            item.start(@messageTimeout)
+            @emit("queueItemReady", item)
         else if json.action == "queueItemResponse"
             # A response from the server acknowledging it has received a task
             # response from us

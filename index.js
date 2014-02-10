@@ -245,25 +245,26 @@
       this._onMessage = __bind(this._onMessage, this);
       options = options || {};
       PhantomQueuedClusterClient.__super__.constructor.call(this, options);
-      this.currentRequestId = null;
+      this.messageTimeout = options.messageTimeout || DEFAULT_MESSAGE_TIMEOUT;
       this.on("workerReady", this._onWorkerReady);
       process.on("message", this._onMessage);
     }
 
-    PhantomQueuedClusterClient.prototype.queueItemResponse = function(response) {
-      process.send({
-        action: "queueItemResponse",
-        id: this.currentRequestId,
-        response: response
-      });
-      return this.next();
-    };
-
     PhantomQueuedClusterClient.prototype._onMessage = function(json) {
-      var _ref;
+      var item, _ref,
+        _this = this;
       if (json.action === "queueItemRequest") {
-        this.currentRequestId = json.id;
-        return this.emit("queueItemReady", json.request);
+        item = new QueueItem(json.id, json.request);
+        item.on("response", function() {
+          process.send({
+            action: "queueItemResponse",
+            id: item.id,
+            response: item.response
+          });
+          return _this.next();
+        });
+        item.start(this.messageTimeout);
+        return this.emit("queueItemReady", item);
       } else if (json.action === "queueItemResponse") {
         if ((_ref = json.status) !== "OK" && _ref !== "ignored") {
           throw new Error("Unexpected status code from queueItemResponse message: " + json.status);

@@ -64,15 +64,15 @@ main = () ->
     engine.on "phantomDied", () -> console.log("# Phantom instance died")
 
     # Called when there's a request URL to crawl
-    engine.on "queueItemReady", (url) ->
-        console.log("# Ready to process #{url}")
+    engine.on "queueItemReady", (item) ->
+        console.log("# Ready to process #{item.request}")
 
         # Open the page, grab the title, and send a response with it
         @ph.createPage((page) =>
-            page.open(url, (status) =>
+            page.open(item.request, (status) =>
                 page.evaluate((() -> document.title), (result) =>
-                    console.log("# Finished request for #{url}: #{result}")
-                    @queueItemResponse(result)
+                    console.log("# Finished request for #{item.request}: #{result}")
+                    item.finish(result)
                 )
             )
         )

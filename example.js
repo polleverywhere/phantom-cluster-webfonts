@@ -78,16 +78,16 @@
     engine.on("phantomDied", function() {
       return console.log("# Phantom instance died");
     });
-    engine.on("queueItemReady", function(url) {
+    engine.on("queueItemReady", function(item) {
       var _this = this;
-      console.log("# Ready to process " + url);
+      console.log("# Ready to process " + item.request);
       return this.ph.createPage(function(page) {
-        return page.open(url, function(status) {
+        return page.open(item.request, function(status) {
           return page.evaluate((function() {
             return document.title;
           }), function(result) {
-            console.log("# Finished request for " + url + ": " + result);
-            return _this.queueItemResponse(result);
+            console.log("# Finished request for " + item.request + ": " + result);
+            return item.finish(result);
           });
         });
       });
