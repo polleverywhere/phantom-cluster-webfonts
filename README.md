@@ -154,6 +154,11 @@ methods/events/properties.
   processed. Event listeners are passed a phantomjs `page` object, and a
   `QueueItem` representing the request to process.
 
+#### Properties
+
+* `itemsQueue`: Contains the queue of unprocessed requests.
+* `pagesQueue`: Contains a queue of pages ready to be used by the worker.
+
 ### QueueItem
 
 Represents an item for processing for queued engines. Used by both servers
