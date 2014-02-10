@@ -1,25 +1,28 @@
 # phantom-cluster
 
 Phantom-cluster is a cluster of node.js workers for processing requests with
-phantomjs instances.
+phantomjs instances in parallel. Built-in functionality prevents memory leaks
+from phantomjs processes: the number of pages open at a time is capped, and
+workers are automatically restarted after a few iterations.
 
-Because you can spawn multiple workers, requests can be processed in parallel.
-At the same time, the limited number of workers prevents you from spinning up
-too many memory-intensive phantomjs instances. Further, there's some added
-logic to automatically restart workers after a few iterations to prevent
-memory leaks.
+Two modes are supported. `PhantomClusterServer` and `PhantomClusterWorker`
+provide bare-bones functionality: they simply handle the clustering
+functionality, and leave it to you to determine how the server and workers
+should coordinate work. The second, provided by `PhantomQueuedClusterServer`
+and `PhantomQueuedClusterWorker` is opinionated on communication and worker
+methodology.
 
 For a full example, see
 [example.coffee](https://github.com/dailymuse/phantom-cluster/blob/master/example.coffee).
 
-## Communication-agnostic engines
+## Bare-bones engines
 
 If you want to use a custom communication mechanism, or do not wish to use a
-FIFO queue, you can use the communication-agnostic engines, represented with
-`PhantomClusterServer` and `PhantomClusterClient`. In this mode, the server
+FIFO queue, you can use the bare-bones engines, represented with
+`PhantomClusterServer` and `PhantomClusterWorker`. In this mode, the server
 spins up workers, and workers coordinate access to the phantomjs process, but
-that's it. It's up to you to figure out how to get the server to send requests
-to clients.
+that's it. It's up to you to figure out how and when to get the server to send
+requests to workers.
 
 Spin up new instances of these classes via `create()`, i.e.:
 
@@ -34,6 +37,8 @@ The options for `create`:
 * `workerIterations`: The number of work iterations to execute before killing this
   worker and restarting it. This is available to prevent phantomjs memory
   leaks from exhausting all the system memory (defaults to 100.)
+* `workerParallelism`: The number of items each worker can handle in parallel.
+  This determines the number of phantomjs pages open per worker.
 * `phantomArguments`: An array of strings specifying command-line arguments to
   pass into the phantomjs process. See
   [the phantomjs docs](https://github.com/ariya/phantomjs/wiki/API-Reference#command-line-options)
@@ -44,14 +49,16 @@ The options for `create`:
   ports to communicate with the phantomjs process.
 
 If the process is a worker, you'll be returned an instance of
-`PhantomClusterClient`. Otherwise you'll be returned an instance of
+`PhantomClusterWorker`. Otherwise you'll be returned an instance of
 `PhantomClusterServer`.
 
 ### PhantomClusterServer
 
 #### Methods
 
-* `addWorker`: Adds a new worker.
+* `addWorker`: Adds a new worker. This is called internally, so it probably
+  doesn't need to be called unless you wish to dynamically resize the number
+  of operating workers.
 * `start`: Starts the server and spins up the workers.
 * `stop`: Stops the server and kills the workers.
 
@@ -64,16 +71,17 @@ If the process is a worker, you'll be returned an instance of
 
 #### Properties
 
+* `numWorkers`: The number of workers to run simultaneously.
 * `workers`: Mapping of worker IDs to worker objects.
 * `done`: Whether the engine is done (i.e. whether `stop()` has been called.)
 
-### PhantomClusterClient
+### PhantomClusterWorker
 
 #### Methods
 
 * `next`: Call this method when you've finished processing a request.
-* `start`: Starts the client.
-* `stop`: Stops the client.
+* `start`: Starts the worker.
+* `stop`: Stops the worker.
 
 #### Events
 
@@ -90,19 +98,19 @@ If the process is a worker, you'll be returned an instance of
   [phantomjs-node documentation](https://github.com/sgentle/phantomjs-node) on
   how to use it.
 * `iterations`: The number of iterations left before this worker is killed.
+* `done`: Whether the engine is done (i.e. whether `stop()` has been called.)
 
 ## Queued engines
 
-phantom-cluster exposes a server/client setup that builds on the
-communication-agnostic server/client that processes requests via a FIFO queue.
-Communication between the server and workers is facilitated via node.js'
-built-in IPC mechanism. This should suit most needs and is the default setup.
+phantom-cluster exposes a server/worker setup that builds on the bare-bones
+server/worker that processes requests via a FIFO queue. Communication between
+the server and workers is facilitated via node.js' built-in IPC mechanism.
+This should suit most needs and is the default setup.
 
 In this setup, requests should be
 [idempotent](https://en.wikipedia.org/wiki/Idempotence) - that is, multiple
 executions of the request should yield the same result. This is because
-requests have a built-in timeout. This is to prevent lost requests from, e.g.
-workers that suddenly die.
+requests have a built-in timeout to prevent lost requests.
 
 Spin up new instances of these classes via `createQueued()`, i.e.:
 
@@ -115,7 +123,7 @@ additionally:
 
 * `messageTimeout`: Sets the timeout for requests. After this timeout the
   request is re-enqueued. Again, you'll be returned either a
-  `PhantomQueuedClusterServer` or `PhantomQueuedClusterClient` depending on
+  `PhantomQueuedClusterServer` or `PhantomQueuedClusterWorker` depending on
   whether this is a worker process or not.
 
 ### PhantomQueuedClusterServer
@@ -131,29 +139,39 @@ methods/events/properties.
 
 #### Properties
 
-* `queue`: Contains the queue of unprocessed requests.
+* `itemsQueue`: Contains the queue of unprocessed requests.
+* `workersQueue`: Contains the queue of workers waiting to work on requests.
 
-### PhantomQueuedClusterClient
+### PhantomQueuedClusterWorker
 
-This extends `PhantomClusterClient`, so it includes all of their
+This extends `PhantomClusterWorker`, so it includes all of their
 methods/events/properties.
-
-#### Methods
-
-* `queueItemResponse`: Call this method instead of `next` when you've 
-  processing the current request, as it notify the server. Pass the response
-  as an argument, which will in turn be passed to the server.
 
 #### Events
 
-* `queueItemReady`: Listen for this method instead of `workerReady`, as it
-  will be called only when both the phantom process is ready and there's a
-  request from the server that should be processed.
+* `request`: Listen for this method instead of `workerReady`, as it will fire
+  only when both a phantomjs process is ready and a request is ready to be
+  processed. Event listeners are passed a phantomjs `page` object, and a
+  `QueueItem` representing the request to process.
+
+#### Properties
+
+* `itemsQueue`: Contains the queue of unprocessed requests.
+* `pagesQueue`: Contains a queue of pages ready to be used by the worker.
 
 ### QueueItem
 
-This is the object returned by `PhantomQueuedClusterServer`'s `enqueue`
-method.
+Represents an item for processing for queued engines. Used by both servers
+(returned via `enqueue`) and by workers (passed to event listeners of
+`request`.)
+
+#### Methods
+
+* `start`: Starts the `QueueItem`. Pass in a `timeout` in milliseconds to
+  indicate how long the `QueueItem` should run for before being considered
+  timed out. This should only be called internally.
+* `finish`: Finishes the `QueueItem`. Pass in a response object. The timer
+  will be canceled.
 
 #### Events
 
