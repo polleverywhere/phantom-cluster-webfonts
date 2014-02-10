@@ -252,10 +252,13 @@
 
     function PhantomQueuedClusterClient(options) {
       this._onWorkerReady = __bind(this._onWorkerReady, this);
+      this._onPageReady = __bind(this._onPageReady, this);
       this._onMessage = __bind(this._onMessage, this);
       options = options || {};
       PhantomQueuedClusterClient.__super__.constructor.call(this, options);
       this.messageTimeout = options.messageTimeout || DEFAULT_MESSAGE_TIMEOUT;
+      this.itemsQueue = [];
+      this.pagesQueue = [];
       this.on("workerReady", this._onWorkerReady);
       process.on("message", this._onMessage);
     }
@@ -274,7 +277,8 @@
           return _this.next();
         });
         item.start(this.messageTimeout);
-        return this.emit("queueItemReady", item);
+        this.itemsQueue.push(item);
+        return this._checkReadiness();
       } else if (json.action === "queueItemResponse") {
         if ((_ref = json.status) !== "OK" && _ref !== "ignored") {
           throw new Error("Unexpected status code from queueItemResponse message: " + json.status);
@@ -282,10 +286,22 @@
       }
     };
 
+    PhantomQueuedClusterClient.prototype._onPageReady = function(page) {
+      this.pagesQueue.push(page);
+      return this._checkReadiness();
+    };
+
     PhantomQueuedClusterClient.prototype._onWorkerReady = function() {
-      return process.send({
+      process.send({
         action: "queueItemRequest"
       });
+      return this.ph.createPage(this._onPageReady);
+    };
+
+    PhantomQueuedClusterClient.prototype._checkReadiness = function() {
+      if (this.itemsQueue.length > 0 && this.pagesQueue.length > 0) {
+        return this.emit("request", this.pagesQueue.shift(), this.itemsQueue.shift());
+      }
     };
 
     return PhantomQueuedClusterClient;

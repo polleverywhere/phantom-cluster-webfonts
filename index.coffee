@@ -261,6 +261,12 @@ class PhantomQueuedClusterClient extends PhantomClusterClient
         # Timeout (in ms) before a message is considered dead
         @messageTimeout = options.messageTimeout or DEFAULT_MESSAGE_TIMEOUT
 
+        # Queue of local items ready to be processed
+        @itemsQueue = []
+
+        # Queue of pages ready to be used
+        @pagesQueue = []
+
         @on "workerReady", @_onWorkerReady
         process.on "message", @_onMessage
 
@@ -283,16 +289,28 @@ class PhantomQueuedClusterClient extends PhantomClusterClient
             )
 
             item.start(@messageTimeout)
-            @emit("queueItemReady", item)
+            @itemsQueue.push(item)
+            @_checkReadiness()
         else if json.action == "queueItemResponse"
             # A response from the server acknowledging it has received a task
             # response from us
             if json.status not in ["OK", "ignored"]
                 throw new Error("Unexpected status code from queueItemResponse message: #{json.status}")
 
+    _onPageReady: (page) =>
+        @pagesQueue.push(page)
+        @_checkReadiness()
+
     _onWorkerReady: () =>
         # When phantom is ready, make a request for a new task
         process.send({ action: "queueItemRequest" })
+
+        # Simultaneously create a page in phantomjs
+        @ph.createPage(@_onPageReady)
+
+    _checkReadiness: () ->
+        if @itemsQueue.length > 0 and @pagesQueue.length > 0
+            @emit("request", @pagesQueue.shift(), @itemsQueue.shift())
 
 # Holds a task in the queue
 class QueueItem extends events.EventEmitter

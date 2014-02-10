@@ -65,7 +65,7 @@ main = () ->
     engine.on "phantomDied", () -> console.log("# Phantom instance died")
 
     # Called when there's a request URL to crawl
-    engine.on "queueItemReady", (item) ->
+    engine.on "request", (page, item) ->
         console.log("# Ready to process #{item.request}")
 
         # Open the page, grab the title, and send a response with it

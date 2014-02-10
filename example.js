@@ -79,7 +79,7 @@
     engine.on("phantomDied", function() {
       return console.log("# Phantom instance died");
     });
-    engine.on("queueItemReady", function(item) {
+    engine.on("request", function(page, item) {
       var _this = this;
       console.log("# Ready to process " + item.request);
       return this.ph.createPage(function(page) {
