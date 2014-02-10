@@ -107,11 +107,6 @@ server/worker that processes requests via a FIFO queue. Communication between
 the server and workers is facilitated via node.js' built-in IPC mechanism.
 This should suit most needs and is the default setup.
 
-In this setup, requests should be
-[idempotent](https://en.wikipedia.org/wiki/Idempotence) - that is, multiple
-executions of the request should yield the same result. This is because
-requests have a built-in timeout to prevent lost requests.
-
 Spin up new instances of these classes via `createQueued()`, i.e.:
 
     var phantomCluster = require("phantom-cluster");
