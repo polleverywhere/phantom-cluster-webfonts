@@ -160,6 +160,14 @@ Represents an item for processing for queued engines. Used by both servers
 (returned via `enqueue`) and by clients (passed to event listeners of
 `request`.)
 
+#### Methods
+
+* `start`: Starts the `QueueItem`. Pass in a `timeout` in milliseconds to
+  indicate how long the `QueueItem` should run for before being considered
+  timed out. This should only be called internally.
+* `finish`: Finishes the `QueueItem`. Pass in a response object. The timer
+  will be canceled.
+
 #### Events
 
 * `response`: Fired when there is a response that's been returned from a
