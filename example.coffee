@@ -1,9 +1,7 @@
 phantomCluster = require("./index")
 cluster = require("cluster")
 
-# Mapping of website URLs to their <title>s. Limited set of websites so that
-# we're constraints to places we know are cool with getting a wee little
-# phantomjs crawl.
+# Mapping of website URLs to their <title>s
 WEBSITES = {
     "http://www.themuse.com/": "The Muse - Career advice and better job search",
     "http://www.themuse.com/companies": "Companies | The Muse",

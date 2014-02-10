@@ -1,6 +1,12 @@
 phantomCluster = require("./index")
 cluster = require("cluster")
 
+WEBSITES = {
+    "http://www.themuse.com/": "The Muse - Career advice and better job search",
+    "http://www.themuse.com/companies": "Companies | The Muse",
+    "http://www.themuse.com/jobs": "Jobs | The Muse",
+}
+
 objectLength = (obj) ->
     count = 0
     for _ of obj
@@ -58,12 +64,6 @@ exports.testPhantomClusterClient = (test) ->
     )
 
     c.start()
-
-# exports.testQueuedPhantomClusterServer = (test) ->
-#     ...
-
-# exports.testQueuedPhantomClusterClient = (test) ->
-#     ...
 
 exports.testQueueItem = (test) ->
     test.expect(12)
