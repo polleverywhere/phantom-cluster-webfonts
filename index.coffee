@@ -7,6 +7,9 @@ os = require("os")
 # process. This is done to prevent memory leaks from phantomjs.
 DEFAULT_WORKER_ITERATIONS = 100
 
+# Default number of requests to handle in parallel.
+DEFAULT_WORKER_PARALLELISM = 2
+
 # How often to check for when the cluster should be shutdown. This happens
 # when the work queue is empty and there are no pending tasks left.
 STOP_QUEUE_CHECKING_INTERVAL = 10
@@ -100,6 +103,9 @@ class PhantomClusterClient extends events.EventEmitter
         # Number of iterations to perform before killing this client
         @iterations = options.workerIterations or DEFAULT_WORKER_ITERATIONS
 
+        # Number of items to work on in parallel
+        @parallelism = options.workerParallelism or DEFAULT_WORKER_PARALLELISM
+
         # Arguments to pass to start the phantom instance
         @phantomArguments = options.phantomArguments or []
 
@@ -110,6 +116,9 @@ class PhantomClusterClient extends events.EventEmitter
         # this to create a unique port.
         @phantomBasePort = options.phantomBasePort or 12300
 
+        # Number of items currently being worked on
+        @pendingRequestCount = 0
+
         # Whether we're done
         @done = false
 
@@ -117,6 +126,7 @@ class PhantomClusterClient extends events.EventEmitter
         options = {
             binary: @phantomBinary,
             port: @phantomBasePort + cluster.worker.id + 1,
+
             onExit: () =>
                 # When phantom dies, kill this worker
                 @emit("phantomDied")
@@ -127,7 +137,9 @@ class PhantomClusterClient extends events.EventEmitter
             # Called when phantom starts up
             @ph = ph
             @emit("phantomStarted")
-            @next()
+
+            for i in [0...@parallelism]
+                @next()
 
         # Run phantom
         phantom.create.apply(phantom, @phantomArguments.concat([options, onStart]))
@@ -137,13 +149,15 @@ class PhantomClusterClient extends events.EventEmitter
         # Called when a work item is completed
 
         if not @done
-            # Decrement the number of iterations left available to this worker
-            @iterations--
+            if @iterations > 0
+                # Decrement the number of iterations left available to this worker
+                @iterations--
 
-            # If we're out of iterations, kill this worker
-            if @iterations >= 0
+                # Increment the number of pending requests that are executing
+                @pendingRequestCount++
+
                 @emit("workerReady")
-            else
+            else if @pendingRequestCount <= 0
                 @stop()
 
     stop: () ->

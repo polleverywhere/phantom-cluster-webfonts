@@ -35,11 +35,12 @@ exports.testPhantomClusterServer = (test) ->
     test.done()
 
 exports.testPhantomClusterClient = (test) ->
-    test.expect(8)
+    test.expect(7)
 
     # Mock for tests
     cluster.worker = {
-        id: 1
+        id: 1,
+        workerParallelism: 2
     }
 
     c = new phantomCluster.PhantomClusterClient({})
@@ -52,13 +53,13 @@ exports.testPhantomClusterClient = (test) ->
     c.on("phantomStarted", () ->
         test.notEqual(c.ph, null)
         test.equal(c.iterations, 100)
-        test.ok(true)
         c.next()
         test.equal(c.iterations, 99)
 
-        # Make sure .next() is implicitly called on phantom start
+        # Make sure .next() is implicitly called twice (based on
+        # `workerParallelism`) on phantom start
         setTimeout(() ->
-            test.equal(c.iterations, 98)
+            test.equal(c.iterations, 97)
             test.done()
         , 0)
     )

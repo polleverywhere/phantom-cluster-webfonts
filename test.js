@@ -41,9 +41,10 @@
 
   exports.testPhantomClusterClient = function(test) {
     var c;
-    test.expect(8);
+    test.expect(7);
     cluster.worker = {
-      id: 1
+      id: 1,
+      workerParallelism: 2
     };
     c = new phantomCluster.PhantomClusterClient({});
     test.equal(c.ph, null);
@@ -54,11 +55,10 @@
     c.on("phantomStarted", function() {
       test.notEqual(c.ph, null);
       test.equal(c.iterations, 100);
-      test.ok(true);
       c.next();
       test.equal(c.iterations, 99);
       return setTimeout(function() {
-        test.equal(c.iterations, 98);
+        test.equal(c.iterations, 97);
         return test.done();
       }, 0);
     });
