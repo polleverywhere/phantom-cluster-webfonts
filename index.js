@@ -102,6 +102,8 @@
       this.phantomArguments = options.phantomArguments || [];
       this.phantomBinary = options.phantomBinary || require("phantomjs").path;
       this.phantomBasePort = this.phantomBasePort || 12300;
+      this.onStdout = options.onStdout;
+      this.onStderr = options.onStderr;
       this.done = false;
       process.on("SIGTERM", this._onExit);
       process.on("SIGINT", this._onExit);
@@ -113,6 +115,8 @@
       options = {
         binary: this.phantomBinary,
         port: this.phantomBasePort + cluster.worker.id + 1,
+        onStdout: this.onStdout,
+        onStderr: this.onStderr,
         onExit: function() {
           _this.emit("phantomDied");
           return _this.stop();

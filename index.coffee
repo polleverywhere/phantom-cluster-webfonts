@@ -104,6 +104,14 @@ class PhantomClusterClient extends events.EventEmitter
         # this to create a unique port.
         @phantomBasePort = this.phantomBasePort or 12300
 
+        # Function to replace default stdout for phantom.
+        # Can be used to save errors instead of console.log them
+        @onStdout = options.onStdout
+
+        # Function to replace default stderr for phantom.
+        # Can be used to save errors instead of console.log them
+        @onStderr = options.onStderr
+
         # Whether we're done
         @done = false
 
@@ -114,6 +122,8 @@ class PhantomClusterClient extends events.EventEmitter
         options = {
             binary: @phantomBinary,
             port: @phantomBasePort + cluster.worker.id + 1,
+            onStdout: @onStdout,
+            onStderr: @onStderr,
             onExit: () =>
                 # When phantom dies, kill this worker
                 @emit("phantomDied")
