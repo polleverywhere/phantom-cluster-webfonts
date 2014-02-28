@@ -23,22 +23,22 @@ empty = (obj) ->
 # Creates a new cluster
 create = (options) ->
     if cluster.isMaster
-        new PhantomClusterServer(options or {})
+        new PhantomClusterServer(options)
     else
-        new PhantomClusterClient(options or {})
+        new PhantomClusterClient(options)
 
 # Creates a cluster with a work queue
 createQueued = (options) ->
     if cluster.isMaster
-        new PhantomQueuedClusterServer(options or {})
+        new PhantomQueuedClusterServer(options)
     else
-        new PhantomQueuedClusterClient(options or {})
+        new PhantomQueuedClusterClient(options)
 
 # A basic cluster server/master. Communication is not handled in this,
 # although it can be extended to use whatever communication primitives, as is
 # done with PhantomQueuedClusterServer.
 class PhantomClusterServer extends events.EventEmitter
-    constructor: (options) ->
+    constructor: (options = {}) ->
         super
 
         # Number of workers to spawn
@@ -85,7 +85,7 @@ class PhantomClusterServer extends events.EventEmitter
 # although it can be extended to use whatever communication primitives, as is
 # done with PhantomQueuedClusterClient.
 class PhantomClusterClient extends events.EventEmitter
-    constructor: (options) ->
+    constructor: (options = {}) ->
         super
 
         # Phantom instance

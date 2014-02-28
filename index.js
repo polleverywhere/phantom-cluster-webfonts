@@ -27,17 +27,17 @@
 
   create = function(options) {
     if (cluster.isMaster) {
-      return new PhantomClusterServer(options || {});
+      return new PhantomClusterServer(options);
     } else {
-      return new PhantomClusterClient(options || {});
+      return new PhantomClusterClient(options);
     }
   };
 
   createQueued = function(options) {
     if (cluster.isMaster) {
-      return new PhantomQueuedClusterServer(options || {});
+      return new PhantomQueuedClusterServer(options);
     } else {
-      return new PhantomQueuedClusterClient(options || {});
+      return new PhantomQueuedClusterClient(options);
     }
   };
 
@@ -45,6 +45,9 @@
     __extends(PhantomClusterServer, _super);
 
     function PhantomClusterServer(options) {
+      if (options == null) {
+        options = {};
+      }
       PhantomClusterServer.__super__.constructor.apply(this, arguments);
       this.numWorkers = options.workers || require("os").cpus().length;
       this.workers = {};
@@ -95,6 +98,9 @@
     __extends(PhantomClusterClient, _super);
 
     function PhantomClusterClient(options) {
+      if (options == null) {
+        options = {};
+      }
       this._onExit = __bind(this._onExit, this);
       PhantomClusterClient.__super__.constructor.apply(this, arguments);
       this.ph = null;
