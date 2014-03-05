@@ -276,7 +276,6 @@
         this.currentRequestId = json.id;
         return this.emit("queueItemReady", json.request);
       } else if (json.action === "queueItemResponse") {
-        console.log("" + json.status);
         if ((_ref = json.status) !== "OK" && _ref !== "ignored") {
           throw new Error("Unexpected status code from queueItemResponse message: " + json.status);
         }
