@@ -179,7 +179,7 @@ class PhantomQueuedClusterServer extends PhantomClusterServer
         # Counter for generating unique message IDs
         @_messageIdCounter = 0
 
-        # Queue if pending tasks
+        # Queue of pending tasks
         @queue = []
 
         # Queue of clients waiting to run a task
@@ -225,11 +225,11 @@ class PhantomQueuedClusterServer extends PhantomClusterServer
                     item.finish(json.response)
                     delete @_sentMessages[json.id]
 
-                    worker.send({ action: "OK" })
+                    worker.send({ action: "queueItemResponse", status: "OK" })
                 else
                     # If the item doesn't exist, notify the client that the
                     # completion was ignored
-                    worker.send({ action: "ignored" })
+                    worker.send({ action: "queueItemResponse", status: "ignored" })
 
     _sendQueueItemRequest: (worker, item) ->
         # Send the item off
@@ -290,7 +290,7 @@ class PhantomQueuedClusterClient extends PhantomClusterClient
 
 # Holds a task in the queue
 class QueueItem extends events.EventEmitter
-    constructor: (id, request, timeout) ->
+    constructor: (id, request) ->
         # The unique ID of the item
         @id = id
 

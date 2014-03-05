@@ -217,11 +217,13 @@
             item.finish(json.response);
             delete _this._sentMessages[json.id];
             return worker.send({
-              action: "OK"
+              action: "queueItemResponse",
+              status: "OK"
             });
           } else {
             return worker.send({
-              action: "ignored"
+              action: "queueItemResponse",
+              status: "ignored"
             });
           }
         }
@@ -274,6 +276,7 @@
         this.currentRequestId = json.id;
         return this.emit("queueItemReady", json.request);
       } else if (json.action === "queueItemResponse") {
+        console.log("" + json.status);
         if ((_ref = json.status) !== "OK" && _ref !== "ignored") {
           throw new Error("Unexpected status code from queueItemResponse message: " + json.status);
         }
@@ -293,7 +296,7 @@
   QueueItem = (function(_super) {
     __extends(QueueItem, _super);
 
-    function QueueItem(id, request, timeout) {
+    function QueueItem(id, request) {
       this._timeout = __bind(this._timeout, this);
       this.id = id;
       this.request = request;
