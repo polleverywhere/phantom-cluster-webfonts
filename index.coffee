@@ -23,22 +23,22 @@ empty = (obj) ->
 # Creates a new cluster
 create = (options) ->
     if cluster.isMaster
-        new PhantomClusterServer(options or {})
+        new PhantomClusterServer(options)
     else
-        new PhantomClusterClient(options or {})
+        new PhantomClusterClient(options)
 
 # Creates a cluster with a work queue
 createQueued = (options) ->
     if cluster.isMaster
-        new PhantomQueuedClusterServer(options or {})
+        new PhantomQueuedClusterServer(options)
     else
-        new PhantomQueuedClusterClient(options or {})
+        new PhantomQueuedClusterClient(options)
 
 # A basic cluster server/master. Communication is not handled in this,
 # although it can be extended to use whatever communication primitives, as is
 # done with PhantomQueuedClusterServer.
 class PhantomClusterServer extends events.EventEmitter
-    constructor: (options) ->
+    constructor: (options = {}) ->
         super
 
         # Number of workers to spawn
@@ -85,7 +85,7 @@ class PhantomClusterServer extends events.EventEmitter
 # although it can be extended to use whatever communication primitives, as is
 # done with PhantomQueuedClusterClient.
 class PhantomClusterClient extends events.EventEmitter
-    constructor: (options) ->
+    constructor: (options = {}) ->
         super
 
         # Phantom instance
@@ -179,7 +179,7 @@ class PhantomQueuedClusterServer extends PhantomClusterServer
         # Counter for generating unique message IDs
         @_messageIdCounter = 0
 
-        # Queue if pending tasks
+        # Queue of pending tasks
         @queue = []
 
         # Queue of clients waiting to run a task
@@ -190,6 +190,7 @@ class PhantomQueuedClusterServer extends PhantomClusterServer
     enqueue: (request) ->
         # Enqueues a new request to pass off to a client
         item = new QueueItem(@_messageIdCounter++, request)
+        request.id = item.id
 
         # When an item times out, remove it from the sent messages
         item.on "timeout", () =>
@@ -225,11 +226,11 @@ class PhantomQueuedClusterServer extends PhantomClusterServer
                     item.finish(json.response)
                     delete @_sentMessages[json.id]
 
-                    worker.send({ action: "OK" })
+                    worker.send({ action: "queueItemResponse", status: "OK" })
                 else
                     # If the item doesn't exist, notify the client that the
                     # completion was ignored
-                    worker.send({ action: "ignored" })
+                    worker.send({ action: "queueItemResponse", status: "ignored" })
 
     _sendQueueItemRequest: (worker, item) ->
         # Send the item off
@@ -244,6 +245,12 @@ class PhantomQueuedClusterServer extends PhantomClusterServer
 
         # Start the item, which will start the timeout on it
         item.start(@messageTimeout)
+
+        item.on "timeout", ->
+            worker.send({
+                action: "queueItemTimeout",
+                id: item.id
+            })
         
         # Add the item to the pending tasks
         @_sentMessages[item.id] = item
@@ -283,6 +290,8 @@ class PhantomQueuedClusterClient extends PhantomClusterClient
             # response from us
             if json.status not in ["OK", "ignored"]
                 throw new Error("Unexpected status code from queueItemResponse message: #{json.status}")
+        else if json.action == "queueItemTimeout"
+            @emit("queueItemTimeout", json.id)
 
     _onWorkerReady: () =>
         # When phantom is ready, make a request for a new task
@@ -290,7 +299,7 @@ class PhantomQueuedClusterClient extends PhantomClusterClient
 
 # Holds a task in the queue
 class QueueItem extends events.EventEmitter
-    constructor: (id, request, timeout) ->
+    constructor: (id, request) ->
         # The unique ID of the item
         @id = id
 
