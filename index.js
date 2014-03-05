@@ -184,6 +184,7 @@
       var item, sent,
         _this = this;
       item = new QueueItem(this._messageIdCounter++, request);
+      request.id = item.id;
       item.on("timeout", function() {
         return delete _this._sentMessages[item.id];
       });
@@ -241,6 +242,12 @@
         return false;
       }
       item.start(this.messageTimeout);
+      item.on("timeout", function() {
+        return worker.send({
+          action: "queueItemTimeout",
+          id: item.id
+        });
+      });
       this._sentMessages[item.id] = item;
       return true;
     };
@@ -279,6 +286,8 @@
         if ((_ref = json.status) !== "OK" && _ref !== "ignored") {
           throw new Error("Unexpected status code from queueItemResponse message: " + json.status);
         }
+      } else if (json.action === "queueItemTimeout") {
+        return this.emit("queueItemTimeout", json.id);
       }
     };
 

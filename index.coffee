@@ -190,6 +190,7 @@ class PhantomQueuedClusterServer extends PhantomClusterServer
     enqueue: (request) ->
         # Enqueues a new request to pass off to a client
         item = new QueueItem(@_messageIdCounter++, request)
+        request.id = item.id
 
         # When an item times out, remove it from the sent messages
         item.on "timeout", () =>
@@ -244,6 +245,12 @@ class PhantomQueuedClusterServer extends PhantomClusterServer
 
         # Start the item, which will start the timeout on it
         item.start(@messageTimeout)
+
+        item.on "timeout", ->
+            worker.send({
+                action: "queueItemTimeout",
+                id: item.id
+            })
         
         # Add the item to the pending tasks
         @_sentMessages[item.id] = item
@@ -283,6 +290,8 @@ class PhantomQueuedClusterClient extends PhantomClusterClient
             # response from us
             if json.status not in ["OK", "ignored"]
                 throw new Error("Unexpected status code from queueItemResponse message: #{json.status}")
+        else if json.action == "queueItemTimeout"
+            @emit("queueItemTimeout", json.id)
 
     _onWorkerReady: () =>
         # When phantom is ready, make a request for a new task
