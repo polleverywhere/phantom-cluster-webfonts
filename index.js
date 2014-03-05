@@ -33,17 +33,17 @@
 
   create = function(options) {
     if (cluster.isMaster) {
-      return new PhantomClusterServer(options || {});
+      return new PhantomClusterServer(options);
     } else {
-      return new PhantomClusterWorker(options || {});
+      return new PhantomClusterWorker(options);
     }
   };
 
   createQueued = function(options) {
     if (cluster.isMaster) {
-      return new PhantomQueuedClusterServer(options || {});
+      return new PhantomQueuedClusterServer(options);
     } else {
-      return new PhantomQueuedClusterWorker(options || {});
+      return new PhantomQueuedClusterWorker(options);
     }
   };
 
@@ -51,6 +51,9 @@
     __extends(PhantomClusterServer, _super);
 
     function PhantomClusterServer(options) {
+      if (options == null) {
+        options = {};
+      }
       PhantomClusterServer.__super__.constructor.apply(this, arguments);
       options = options || {};
       this.numWorkers = options.workers || DEFAULT_WORKERS;
@@ -102,6 +105,9 @@
     __extends(PhantomClusterWorker, _super);
 
     function PhantomClusterWorker(options) {
+      if (options == null) {
+        options = {};
+      }
       PhantomClusterWorker.__super__.constructor.apply(this, arguments);
       options = options || {};
       this.ph = null;
@@ -111,6 +117,8 @@
       this.phantomBinary = options.phantomBinary || require("phantomjs").path;
       this.phantomBasePort = options.phantomBasePort || 12300;
       this.pendingRequestCount = 0;
+      this.onStdout = options.onStdout;
+      this.onStderr = options.onStderr;
       this.done = false;
     }
 
@@ -120,6 +128,8 @@
       options = {
         binary: this.phantomBinary,
         port: this.phantomBasePort + cluster.worker.id + 1,
+        onStdout: this.onStdout,
+        onStderr: this.onStderr,
         onExit: function() {
           _this.emit("phantomDied");
           return _this.stop();
@@ -184,6 +194,7 @@
       var item, sent,
         _this = this;
       item = new QueueItem(this._messageIdCounter++, request);
+      request.id = item.id;
       item.on("timeout", function() {
         return delete _this._sentMessages[item.id];
       });
@@ -217,11 +228,13 @@
             item.finish(json.response);
             delete _this._sentMessages[json.id];
             return worker.send({
-              action: "OK"
+              action: "queueItemResponse",
+              status: "OK"
             });
           } else {
             return worker.send({
-              action: "ignored"
+              action: "queueItemResponse",
+              status: "ignored"
             });
           }
         }
@@ -239,6 +252,12 @@
         return false;
       }
       item.start(this.messageTimeout);
+      item.on("timeout", function() {
+        return worker.send({
+          action: "queueItemTimeout",
+          id: item.id
+        });
+      });
       this._sentMessages[item.id] = item;
       return true;
     };
@@ -283,6 +302,8 @@
         if ((_ref = json.status) !== "OK" && _ref !== "ignored") {
           throw new Error("Unexpected status code from queueItemResponse message: " + json.status);
         }
+      } else if (json.action === "queueItemTimeout") {
+        return this.emit("queueItemTimeout", json.id);
       }
     };
 

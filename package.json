@@ -1,6 +1,6 @@
 {
     "name": "phantom-cluster",
-    "version": "0.1.0",
+    "version": "0.1.2",
     "author": "Yusuf Simonson <yusuf@themuse.com>",
     "description": "Provides a cluster of workers for phantomjs processing",
 
@@ -17,7 +17,7 @@
 
     "dependencies": {
         "phantomjs": "~1.9.2-0",
-        "phantom": "git://github.com/sgentle/phantomjs-node.git#e029778ec4d936c21a316bf66bb92d3a6534e166"
+        "phantom": "git://github.com/sgentle/phantomjs-node.git#d4e40cae23c069c35500b8282cf3e41d3afb6d1e"
     },
 
     "devDependencies": {

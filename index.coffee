@@ -30,22 +30,22 @@ empty = (obj) ->
 # Creates a new cluster
 create = (options) ->
     if cluster.isMaster
-        new PhantomClusterServer(options or {})
+        new PhantomClusterServer(options)
     else
-        new PhantomClusterWorker(options or {})
+        new PhantomClusterWorker(options)
 
 # Creates a cluster with a work queue
 createQueued = (options) ->
     if cluster.isMaster
-        new PhantomQueuedClusterServer(options or {})
+        new PhantomQueuedClusterServer(options)
     else
-        new PhantomQueuedClusterWorker(options or {})
+        new PhantomQueuedClusterWorker(options)
 
 # A basic cluster server/master. Communication is not handled in this,
 # although it can be extended to use whatever communication primitives, as is
 # done with PhantomQueuedClusterServer.
 class PhantomClusterServer extends events.EventEmitter
-    constructor: (options) ->
+    constructor: (options = {}) ->
         super
         options = options or {}
 
@@ -93,7 +93,7 @@ class PhantomClusterServer extends events.EventEmitter
 # although it can be extended to use whatever communication primitives, as is
 # done with PhantomQueuedClusterWorker.
 class PhantomClusterWorker extends events.EventEmitter
-    constructor: (options) ->
+    constructor: (options = {}) ->
         super
         options = options or {}
 
@@ -119,6 +119,14 @@ class PhantomClusterWorker extends events.EventEmitter
         # Number of items currently being worked on
         @pendingRequestCount = 0
 
+        # Function to replace default stdout for phantom.
+        # Can be used to save errors instead of console.log them
+        @onStdout = options.onStdout
+
+        # Function to replace default stderr for phantom.
+        # Can be used to save errors instead of console.log them
+        @onStderr = options.onStderr
+
         # Whether we're done
         @done = false
 
@@ -126,6 +134,8 @@ class PhantomClusterWorker extends events.EventEmitter
         options = {
             binary: @phantomBinary,
             port: @phantomBasePort + cluster.worker.id + 1,
+            onStdout: @onStdout,
+            onStderr: @onStderr,
 
             onExit: () =>
                 # When phantom dies, kill this worker
@@ -183,7 +193,7 @@ class PhantomQueuedClusterServer extends PhantomClusterServer
         # Counter for generating unique message IDs
         @_messageIdCounter = 0
 
-        # Queue if pending tasks
+        # Queue of pending tasks
         @itemsQueue = []
 
         # Queue of workers waiting to run a task
@@ -194,6 +204,7 @@ class PhantomQueuedClusterServer extends PhantomClusterServer
     enqueue: (request) ->
         # Enqueues a new request to pass off to a worker
         item = new QueueItem(@_messageIdCounter++, request)
+        request.id = item.id
 
         # When an item times out, remove it from the sent messages
         item.on "timeout", () =>
@@ -229,11 +240,11 @@ class PhantomQueuedClusterServer extends PhantomClusterServer
                     item.finish(json.response)
                     delete @_sentMessages[json.id]
 
-                    worker.send({ action: "OK" })
+                    worker.send({ action: "queueItemResponse", status: "OK" })
                 else
                     # If the item doesn't exist, notify the worker that the
                     # completion was ignored
-                    worker.send({ action: "ignored" })
+                    worker.send({ action: "queueItemResponse", status: "ignored" })
 
     _sendQueueItemRequest: (worker, item) ->
         # Send the item off
@@ -250,6 +261,12 @@ class PhantomQueuedClusterServer extends PhantomClusterServer
 
         # Start the item, which will start the timeout on it
         item.start(@messageTimeout)
+
+        item.on "timeout", ->
+            worker.send({
+                action: "queueItemTimeout",
+                id: item.id
+            })
         
         # Add the item to the pending tasks
         @_sentMessages[item.id] = item
@@ -298,6 +315,8 @@ class PhantomQueuedClusterWorker extends PhantomClusterWorker
             # response from us
             if json.status not in ["OK", "ignored"]
                 throw new Error("Unexpected status code from queueItemResponse message: #{json.status}")
+        else if json.action == "queueItemTimeout"
+            @emit("queueItemTimeout", json.id)
 
     _onPageReady: (page) =>
         @pagesQueue.push(page)
