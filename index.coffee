@@ -280,8 +280,6 @@ class PhantomQueuedClusterWorker extends PhantomClusterWorker
         options = options or {}
         super options
 
-        @id = Math.random().toString(36).substring(13);
-
         # Timeout (in ms) before a message is considered dead
         @messageTimeout = options.messageTimeout or DEFAULT_MESSAGE_TIMEOUT
 

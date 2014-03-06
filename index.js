@@ -277,7 +277,6 @@
       this._onMessage = __bind(this._onMessage, this);
       options = options || {};
       PhantomQueuedClusterWorker.__super__.constructor.call(this, options);
-      this.id = Math.random().toString(36).substring(13);
       this.messageTimeout = options.messageTimeout || DEFAULT_MESSAGE_TIMEOUT;
       this.itemsQueue = [];
       this.on("workerReady", this._onWorkerReady);
