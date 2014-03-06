@@ -153,7 +153,6 @@
       if (!this.done) {
         if (this.iterations > 0) {
           this.iterations--;
-          this.pendingRequestCount++;
           return this.emit("workerReady");
         } else if (this.pendingRequestCount <= 0) {
           return this.stop();
@@ -253,10 +252,14 @@
       }
       item.start(this.messageTimeout);
       item.on("timeout", function() {
-        return worker.send({
-          action: "queueItemTimeout",
-          id: item.id
-        });
+        try {
+          return worker.send({
+            action: "queueItemTimeout",
+            id: item.id
+          });
+        } catch (_error) {
+          return false;
+        }
       });
       this._sentMessages[item.id] = item;
       return true;
@@ -271,13 +274,12 @@
 
     function PhantomQueuedClusterWorker(options) {
       this._onWorkerReady = __bind(this._onWorkerReady, this);
-      this._onPageReady = __bind(this._onPageReady, this);
       this._onMessage = __bind(this._onMessage, this);
       options = options || {};
       PhantomQueuedClusterWorker.__super__.constructor.call(this, options);
+      this.id = Math.random().toString(36).substring(13);
       this.messageTimeout = options.messageTimeout || DEFAULT_MESSAGE_TIMEOUT;
       this.itemsQueue = [];
-      this.pagesQueue = [];
       this.on("workerReady", this._onWorkerReady);
       process.on("message", this._onMessage);
     }
@@ -293,11 +295,15 @@
             id: item.id,
             response: item.response
           });
+          _this.pendingRequestCount--;
           return _this.next();
         });
         item.start(this.messageTimeout);
         this.itemsQueue.push(item);
-        return this._checkReadiness();
+        if (this.itemsQueue.length > 0 && this.pendingRequestCount < this.itemsQueue.length) {
+          this.emit("request", this.itemsQueue.shift());
+          return this.pendingRequestCount++;
+        }
       } else if (json.action === "queueItemResponse") {
         if ((_ref = json.status) !== "OK" && _ref !== "ignored") {
           throw new Error("Unexpected status code from queueItemResponse message: " + json.status);
@@ -307,22 +313,10 @@
       }
     };
 
-    PhantomQueuedClusterWorker.prototype._onPageReady = function(page) {
-      this.pagesQueue.push(page);
-      return this._checkReadiness();
-    };
-
     PhantomQueuedClusterWorker.prototype._onWorkerReady = function() {
-      process.send({
+      return process.send({
         action: "queueItemRequest"
       });
-      return this.ph.createPage(this._onPageReady);
-    };
-
-    PhantomQueuedClusterWorker.prototype._checkReadiness = function() {
-      if (this.itemsQueue.length > 0 && this.pagesQueue.length > 0) {
-        return this.emit("request", this.pagesQueue.shift(), this.itemsQueue.shift());
-      }
     };
 
     return PhantomQueuedClusterWorker;
