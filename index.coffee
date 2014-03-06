@@ -163,9 +163,6 @@ class PhantomClusterWorker extends events.EventEmitter
                 # Decrement the number of iterations left available to this worker
                 @iterations--
 
-                # Increment the number of pending requests that are executing
-                @pendingRequestCount++
-
                 @emit("workerReady")
             else if @pendingRequestCount <= 0
                 @stop()
@@ -263,10 +260,16 @@ class PhantomQueuedClusterServer extends PhantomClusterServer
         item.start(@messageTimeout)
 
         item.on "timeout", ->
-            worker.send({
-                action: "queueItemTimeout",
-                id: item.id
-            })
+            #try to send a timeout to the worker if it's still alive
+            try
+                worker.send({
+                    action: "queueItemTimeout",
+                    id: item.id
+                })
+            catch
+                # TODO: if an exception occurs here, then the worker will be
+                # hanging. Find a better error handling mechanism.
+                return false
         
         # Add the item to the pending tasks
         @_sentMessages[item.id] = item
@@ -282,9 +285,6 @@ class PhantomQueuedClusterWorker extends PhantomClusterWorker
 
         # Queue of local items ready to be processed
         @itemsQueue = []
-
-        # Queue of pages ready to be used
-        @pagesQueue = []
 
         @on "workerReady", @_onWorkerReady
         process.on "message", @_onMessage
@@ -304,12 +304,16 @@ class PhantomQueuedClusterWorker extends PhantomClusterWorker
                     response: item.response
                 })
 
+                @pendingRequestCount--
                 @next()
             )
 
             item.start(@messageTimeout)
             @itemsQueue.push(item)
-            @_checkReadiness()
+            if @itemsQueue.length > 0 and @pendingRequestCount < @itemsQueue.length
+                @emit("request", @itemsQueue.shift())
+                @pendingRequestCount++
+
         else if json.action == "queueItemResponse"
             # A response from the server acknowledging it has received a task
             # response from us
@@ -318,20 +322,9 @@ class PhantomQueuedClusterWorker extends PhantomClusterWorker
         else if json.action == "queueItemTimeout"
             @emit("queueItemTimeout", json.id)
 
-    _onPageReady: (page) =>
-        @pagesQueue.push(page)
-        @_checkReadiness()
-
     _onWorkerReady: () =>
         # When phantom is ready, make a request for a new task
         process.send({ action: "queueItemRequest" })
-
-        # Simultaneously create a page in phantomjs
-        @ph.createPage(@_onPageReady)
-
-    _checkReadiness: () ->
-        if @itemsQueue.length > 0 and @pagesQueue.length > 0
-            @emit("request", @pagesQueue.shift(), @itemsQueue.shift())
 
 # Holds a task in the queue
 class QueueItem extends events.EventEmitter
