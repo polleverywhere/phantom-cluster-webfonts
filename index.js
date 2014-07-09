@@ -107,7 +107,7 @@
       this.iterations = options.workerIterations || DEFAULT_WORKER_ITERATIONS;
       this.phantomArguments = options.phantomArguments || [];
       this.phantomBinary = options.phantomBinary || require("phantomjs").path;
-      this.phantomBasePort = this.phantomBasePort || 12300;
+      this.phantomBasePort = options.phantomBasePort || 12300;
       this.onStdout = options.onStdout;
       this.onStderr = options.onStderr;
       this.done = false;
