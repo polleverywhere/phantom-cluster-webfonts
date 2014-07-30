@@ -5,10 +5,10 @@ cluster = require("cluster")
 # we're constraints to places we know are cool with getting a wee little
 # phantomjs crawl.
 WEBSITES = {
-    "http://www.themuse.com/": "The Muse - Career advice and better job search",
-    "http://www.themuse.com/companies": "Companies | The Muse",
-    "http://www.themuse.com/jobs": "Jobs | The Muse",
-    "http://www.themuse.com/developers": "The Muse - Career advice and better job search",
+    "http://www.themuse.com/": "Free Career Advice | Career Finder",
+    "http://www.themuse.com/companies": "Now Hiring | Companies",
+    "http://www.themuse.com/jobs": "Now Hiring | Career Finder",
+    "http://www.themuse.com/developers": "Free Career Advice | Career Finder",
 }
 
 # Enqueues the requests
@@ -26,6 +26,7 @@ enqueueRequests = (engine) ->
         # Fires when there's a response for this item. Validate it.
         item.on "response", () ->
             console.log("# Response")
+
             if WEBSITES[item.request] != item.response then throw new Error("Unexpected response for #{item.request}: #{item.response}")
 
             fulfilled += 1

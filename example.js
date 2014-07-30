@@ -7,10 +7,10 @@
   cluster = require("cluster");
 
   WEBSITES = {
-    "http://www.themuse.com/": "The Muse - Career advice and better job search",
-    "http://www.themuse.com/companies": "Companies | The Muse",
-    "http://www.themuse.com/jobs": "Jobs | The Muse",
-    "http://www.themuse.com/developers": "The Muse - Career advice and better job search"
+    "http://www.themuse.com/": "Free Career Advice | Career Finder",
+    "http://www.themuse.com/companies": "Now Hiring | Companies",
+    "http://www.themuse.com/jobs": "Now Hiring | Career Finder",
+    "http://www.themuse.com/developers": "Free Career Advice | Career Finder"
   };
 
   enqueueRequests = function(engine) {
