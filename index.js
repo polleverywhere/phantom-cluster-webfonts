@@ -101,7 +101,6 @@
       if (options == null) {
         options = {};
       }
-      this._onExit = __bind(this._onExit, this);
       PhantomClusterClient.__super__.constructor.apply(this, arguments);
       this.ph = null;
       this.iterations = options.workerIterations || DEFAULT_WORKER_ITERATIONS;
@@ -111,8 +110,6 @@
       this.onStdout = options.onStdout;
       this.onStderr = options.onStderr;
       this.done = false;
-      process.on("SIGTERM", this._onExit);
-      process.on("SIGINT", this._onExit);
     }
 
     PhantomClusterClient.prototype.start = function() {
@@ -156,10 +153,6 @@
           return process.exit(0);
         });
       }
-    };
-
-    PhantomClusterClient.prototype._onExit = function() {
-      return process.exit();
     };
 
     return PhantomClusterClient;

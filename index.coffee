@@ -115,9 +115,6 @@ class PhantomClusterClient extends events.EventEmitter
         # Whether we're done
         @done = false
 
-        process.on("SIGTERM", @_onExit)
-        process.on("SIGINT", @_onExit)
-
     start: () ->
         options = {
             binary: @phantomBinary,
@@ -159,10 +156,6 @@ class PhantomClusterClient extends events.EventEmitter
             @done = true
             @emit("stopped")
             process.nextTick(() -> process.exit(0))
-
-    # Fix for 
-    _onExit: () =>
-        process.exit()
 
 # A cluster server/master that has a queue of work items. Items are passed off to clients
 # to run via IPC messaging.
