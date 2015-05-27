@@ -16,7 +16,7 @@
     ],
 
     "dependencies": {
-        "phantomjs": "~1.9.2-0",
+        "phantomjs-webfonts": "1.9.3",
         "phantom": "git://github.com/sgentle/phantomjs-node.git#d4e40cae23c069c35500b8282cf3e41d3afb6d1e"
     },
 
