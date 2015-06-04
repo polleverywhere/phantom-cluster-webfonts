@@ -236,10 +236,13 @@
       }
       item.start(this.messageTimeout);
       item.on("timeout", function() {
-        return worker.send({
-          action: "queueItemTimeout",
-          id: item.id
-        });
+        try {
+          return worker.send({
+            action: "queueItemTimeout",
+            id: item.id
+          });
+        }
+        catch (e) {}
       });
       this._sentMessages[item.id] = item;
       return true;
